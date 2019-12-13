@@ -1,0 +1,37 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowAnimationStyle">@style/anim_fade</item>
+
+<!--        <item name="android:windowAnimationStyle">@style/ActivitySwitchAnimation</item>-->
+        <!--<item name="android:textColorPrimary">@color/textColorPrimary</item>
+        <item name="android:windowBackground">@color/windowBackground</item>
+        <item name="android:windowAnimationStyle">@style/ActivitySwitchAnimation</item>-->
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
+        <!-- Customize your theme here. -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="ActivitySwitchAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/anim_slide_in_right</item>
+        <item name="android:activityOpenExitAnimation">@anim/anim_slide_out_left</item>
+        <item name="android:activityCloseEnterAnimation">@anim/anim_slide_in_left</item>
+        <item name="android:activityCloseExitAnimation">@anim/anim_slide_out_right</item>
+    </style>
+
+    <style name="anim_fade" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/anim_fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/anim_fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/anim_fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/anim_fade_out</item>
+    </style>
+
+</resources>
