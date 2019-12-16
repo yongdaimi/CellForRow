@@ -177,5 +177,7 @@ abstract class BaseWriteAttributes {
         return mAttributeCommCallback;
     }
 
+    static final int LENGTH_WRITE_RESPONSE_PDU = 1;
+
 }
 

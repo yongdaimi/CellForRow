@@ -4,18 +4,18 @@ import android.hardware.usb.UsbEndpoint;
 
 /**
  * Callback interface for listening to att communication.
- *
+ * <p>Note: This callback can only be used to listen to write request and write command.</p>
  * @author xp.chen
  */
 public interface AttributeCommCallback {
 
     /**
-     * This method is called when the attribute pdu is sent successfully.
+     * This callback method is called when the attribute pdu is sent successfully.
      */
     void onSendSuccess();
 
     /**
-     * This method is called when the attribute pdu fails to send.
+     * This callback method is called when the attribute pdu fails to send.
      *
      * @param sendResult If sending fails, it will be a negative value.
      * @see android.hardware.usb.UsbDeviceConnection#bulkTransfer(UsbEndpoint, byte[], int, int, int)
@@ -23,12 +23,12 @@ public interface AttributeCommCallback {
     void onSendFailed(int sendResult);
 
     /**
-     * This method is called when the data is sent successfully and the server response is received.
+     * This callback method is called when the data is sent successfully and the server response is received.
      */
     void onReceiveSuccess();
 
     /**
-     * This method is called when data is sent successfully, but an error response is received from the server.
+     * This callback method is called when data is sent successfully, but an error response is received from the server.
      *
      * @param att_opcode   Opcode of error response, When receiving an error, it is 0x01.
      * @param request_code The request opcode that generated this error response.

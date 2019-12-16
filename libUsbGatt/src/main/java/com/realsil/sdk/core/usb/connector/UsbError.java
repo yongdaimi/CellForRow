@@ -13,6 +13,7 @@ public class UsbError {
     static final String STR_HOLD_USB_INTERFACE                 = "[LocalUsbConnector]: Hold Usb interface failed";
     static final String STR_USB_SEND_DATA_FAILED               = "[LocalUsbConnector]: Send data failed";
     static final String STR_USB_RECEIVE_DATA_FAILED            = "[LocalUsbConnector]: Receive data failed";
+    static final String STR_USB_RELEASE_INTERFACE_FAILED       = "[LocalUsbConnector]: Failed to release USB interface";
     static final String STR_USB_SEND_BUF_IS_NULL               = "[LocalUsbConnector]: The buff used for sending cannot be empty";
 
     private static final String STR_UNKNOWN_ERROR = "[LocalUsbConnector]: Unknown Error";
@@ -30,6 +31,7 @@ public class UsbError {
     public static final int CODE_HOLD_USB_INTERFACE                 = -108;
     public static final int CODE_USB_SEND_DATA_FAILED               = -109;
     public static final int CODE_USB_RECEIVE_DATA_FAILED            = -110;
+    public static final int CODE_USB_RELEASE_INTERFACE_FAILED       = -111;
 
 
     public String err2str(int errorCode) {
@@ -67,6 +69,9 @@ public class UsbError {
                 break;
             case CODE_USB_RECEIVE_DATA_FAILED:
                 retstr = STR_USB_RECEIVE_DATA_FAILED;
+                break;
+            case CODE_USB_RELEASE_INTERFACE_FAILED:
+                retstr = STR_USB_RELEASE_INTERFACE_FAILED;
                 break;
             default:
                 retstr = STR_UNKNOWN_ERROR;

@@ -25,8 +25,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -102,9 +100,9 @@ public class LocalUsbConnector {
             }
 
             // Add receive to listen connection process.
-            initReceiver();
+            initUsbReceiver();
             initObjectLock();
-            initThreadPool();
+            startReceiveWriteCommandData();
 
         } else {
             throw new IllegalArgumentException(UsbError.STR_CONTEXT_IS_NULL);
@@ -327,13 +325,13 @@ public class LocalUsbConnector {
         return UsbError.CODE_NO_ERROR;
     }
 
-    private void initReceiver() {
+    private void initUsbReceiver() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(UsbAction.ACTION_REQUEST_USB_PERMISSION);
         mContext.registerReceiver(mBroadcastReceiver, filter);
     }
 
-    private void destroyReceiver() {
+    private void destroyUsbReceiver() {
         mContext.unregisterReceiver(mBroadcastReceiver);
     }
 
@@ -359,39 +357,6 @@ public class LocalUsbConnector {
             }
         }
     };
-
-
-    public int startReadingFromFromUsb() {
-
-
-        if (!mStartWorkFlag) {
-            mStartWorkFlag = true;
-            new ReadUsbBulkInDataWorker().start();
-        }
-
-    }
-
-    private void startReadingFromFromUsb2() {
-        if (mUsbDeviceConnection == null) {
-            Log.e(TAG, UsbError.STR_USB_CONNECTION_NOT_ESTABLISHED);
-            return;
-        }
-
-        int recvMaxSize = mUsbEndpointBulkIn.getMaxPacketSize();
-        ByteBuffer buffer = ByteBuffer.allocate(recvMaxSize);
-        UsbRequest usbRequest = new UsbRequest();
-        usbRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            usbRequest.queue(buffer);
-        } else {
-            usbRequest.queue(buffer, recvMaxSize);
-        }
-        if (mUsbDeviceConnection.requestWait() == usbRequest) {
-            byte[] retData = buffer.array();
-            Log.i(TAG, "has received data, data length: " + retData.length);
-        }
-    }
-
 
     private ListenUsbBulkInDataThread      mListenUsbBulkInDataThread;
     private ListenUsbInterruptInDataThread mListenUsbInterruptInDataThread;
@@ -436,8 +401,7 @@ public class LocalUsbConnector {
                     // Parse receive data
                     byte[] recvData = new byte[recvlen];
                     System.arraycopy(recvBuf, 0, recvData, 0, recvlen);
-                    ParseWriteResponseRunnable parseRunnable = new ParseWriteResponseRunnable(recvData);
-                    mParseWriteResponseThreadPool.execute(parseRunnable);
+                    parseWriteResponseData(recvData);
                 } else {
                     Log.e(TAG, UsbError.STR_USB_RECEIVE_DATA_FAILED);
                 }
@@ -464,8 +428,7 @@ public class LocalUsbConnector {
                 }
                 if (mUsbDeviceConnection.requestWait() == usbRequest) {
                     byte[] recvData = buffer.array();
-                    ParseWriteResponseRunnable parseRunnable = new ParseWriteResponseRunnable(recvData);
-                    mParseWriteResponseThreadPool.execute(parseRunnable);
+                    parseWriteResponseData(recvData);
                     Log.i(TAG, "has received data, data length: " + recvData.length);
                 }
             }
@@ -473,124 +436,95 @@ public class LocalUsbConnector {
     }
 
 
+    private void parseReceiveData(byte[] receiveData) {
+        byte receiveDatum = receiveData[0];
+    }
+
+
     /**
-     * Call this method to start listening for data from the USB endpoint.
-     * <p>Note: This operation needs to wait for the USB connection to be established.</p>
-     * @return
+     * Call this method to parse the received write response data.
+     *
+     * @param writeResponse Write response data returned by the server
+     * @see LocalUsbConnector#writeAttributesRequest(WriteAttributesRequest)
      */
-    public int connect() {
-        if (mUsbDeviceConnection == null) {
-            Log.e(TAG, UsbError.STR_USB_CONNECTION_NOT_ESTABLISHED);
-            return UsbError.CODE_USB_CONNECTION_NOT_ESTABLISHED;
+    private void parseWriteResponseData(byte[] writeResponse) {
+        mSendNextWriteRequestLock.lock();
+        try {
+            if (mSendingWriteAttributesRequest != null) {
+                int parseResult = mSendingWriteAttributesRequest.parseResponse(writeResponse);
+                if (parseResult == AttributeParseResult.PARSE_SUCCESS) {
+                    mSendNextWriteRequestCondition.signal();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            mSendNextWriteRequestLock.unlock();
         }
-
-        if (mUsbEndpointBulkIn == null) {
-            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", bulk in endpoint can not found.");
-            return UsbError.CODE_CAN_NOT_FOUND_USB_ENDPOINT;
-        }
-
-        if (mUsbEndpointInterruptIn == null) {
-            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", interrupt in endpoint can not found");
-            return UsbError.CODE_CAN_NOT_FOUND_USB_ENDPOINT;
-        }
-
-        disConnect();
-        startListenBulkInData();
-        startListenInterruptInData();
-        return UsbError.CODE_NO_ERROR;
     }
 
-    public void disConnect() {
-        // Stop all working threads(listening bulk in thread, listening interrupt in thread, take write attribute thread)
-        mRunningFlag.set(false);
-
-
-    }
-
-    public void start() {
-        // stop all working thread before call this method
-
-        // Start usb bulk in endpoint listening....
-        // Start usb interrupt in endpoint listening....
-        // Take a request from the attRequestPdu cache queue to send
-
-    }
-
-    public void stop() {
-        //
-        //
-    }
 
     /// Send write attribute command thread pool args
     /**
      * Core thread num of send write command thread pool
      */
-    private static final int                CORE_THREAD_NUM_SEND_WRITE_COMMAND = 10;
+    private static final int CORE_THREAD_NUM_SEND_WRITE_COMMAND = 10;
     /**
      * Max thread num of send write command thread pool
      */
-    private static final int                MAX_THREAD_NUM_SEND_WRITE_COMMAND  = 10;
+    private static final int MAX_THREAD_NUM_SEND_WRITE_COMMAND  = 10;
     /**
      * Keep alive time of idle thread in send write command thread pool
      */
-    private static final int                KEEP_ALIVE_TIME_SEND_WRITE_COMMAND = 1000;
+    private static final int KEEP_ALIVE_TIME_SEND_WRITE_COMMAND = 1000;
+
     /**
      * Thread pool for executing send write command tasks
      */
-    private              ThreadPoolExecutor mSendWriteCommandThreadPool;
+    private ThreadPoolExecutor mSendWriteCommandExecutor;
 
-    /// Parse write response thread pool args
     /**
-     * Core thread num of parse write response thread pool
+     * Thread pool for executing send write request tasks.
      */
-    private static final int                CORE_THREAD_NUM_PARSE_WRITE_RESPONSE = 10;
-    /**
-     * Max thread num of parse write response thread pool
-     */
-    private static final int                MAX_THREAD_NUM_PARSE_WRITE_RESPONSE  = 10;
-    /**
-     * Keep alive time of parse write response thread pool
-     */
-    private static final int                KEEP_ALIVE_TIME_PARSE_WRITE_RESPONSE = 1000;
-    /**
-     * Thread pool for executing parse write response tasks
-     */
-    private              ThreadPoolExecutor mParseWriteResponseThreadPool;
+    private Thread mSendWriteAttributesRequestThread;
 
-    private void initThreadPool() {
+
+    private void startReceiveWriteCommandData() {
         mRunningFlag = new AtomicBoolean(false);
 
-        // Init threadPool, This thread pool is used to send commands related to Command PDU.
         LinkedBlockingQueue<Runnable> writeAttributeCommandCacheQueue = new LinkedBlockingQueue<Runnable>();
-        mSendWriteCommandThreadPool = new ThreadPoolExecutor(
-                CORE_THREAD_NUM_SEND_WRITE_COMMAND,
-                MAX_THREAD_NUM_SEND_WRITE_COMMAND,
-                KEEP_ALIVE_TIME_SEND_WRITE_COMMAND,
-                TimeUnit.MILLISECONDS,
-                writeAttributeCommandCacheQueue,
-                new ThreadPoolExecutor.AbortPolicy()
-        );
-
-        LinkedBlockingQueue<Runnable> parseWriteResponseCacheQueue = new LinkedBlockingQueue<Runnable>();
-        mParseWriteResponseThreadPool = new ThreadPoolExecutor(
-                CORE_THREAD_NUM_PARSE_WRITE_RESPONSE,
-                MAX_THREAD_NUM_PARSE_WRITE_RESPONSE,
-                KEEP_ALIVE_TIME_PARSE_WRITE_RESPONSE,
-                TimeUnit.MILLISECONDS,
-                parseWriteResponseCacheQueue,
-                new ThreadPoolExecutor.AbortPolicy()
-        );
-
-        // Cache write attributes request.
-        mSendWriteRequestCacheQueue = new LinkedBlockingQueue<>();
-        mSendWriteRequestExecutor = Executors.newSingleThreadExecutor();
+        if (mSendWriteCommandExecutor == null) {
+            mSendWriteCommandExecutor = new ThreadPoolExecutor(
+                    CORE_THREAD_NUM_SEND_WRITE_COMMAND,
+                    MAX_THREAD_NUM_SEND_WRITE_COMMAND,
+                    KEEP_ALIVE_TIME_SEND_WRITE_COMMAND,
+                    TimeUnit.MILLISECONDS,
+                    writeAttributeCommandCacheQueue,
+                    new ThreadPoolExecutor.AbortPolicy()
+            );
+        }
     }
+
+    /**
+     * This method is used to establish a cache queue to store the write request that the user
+     * will send, and start a thread to send the write attribute request.
+     */
+    private void startReceiveWriteRequestData() {
+        if (mSendWriteRequestCacheQueue == null) {
+            // Cache write attributes request.
+            mSendWriteRequestCacheQueue = new LinkedBlockingQueue<>();
+        }
+
+        if (mSendWriteAttributesRequestThread == null) {
+            mSendWriteAttributesRequestThread = new SendWriteAttributesRequestThread();
+            mSendWriteAttributesRequestThread.start();
+        }
+    }
+
 
     public void setAllowOnlyHaveOutEndpoint(boolean isAllow) {
         this.mAllowOnlyHaveOutEndpoint = isAllow;
     }
-
-
 
 
     /**
@@ -604,7 +538,7 @@ public class LocalUsbConnector {
      */
     public void writeAttributesCommand(WriteAttributesCommand writeAttributesCommand) {
         WriteAttributesCommandRunnable runnable = new WriteAttributesCommandRunnable(writeAttributesCommand);
-        mSendWriteCommandThreadPool.execute(runnable);
+        mSendWriteCommandExecutor.execute(runnable);
     }
 
     /**
@@ -616,8 +550,7 @@ public class LocalUsbConnector {
      * @see WriteAttributesRequest#addAttributeCommCallback(AttributeCommCallback)
      */
     public void writeAttributesRequest(WriteAttributesRequest writeAttributesRequest) {
-        WriteAttributesRequestRunnable runnable = new WriteAttributesRequestRunnable(writeAttributesRequest);
-        mSendWriteRequestCacheQueue.offer(runnable);
+        mSendWriteRequestCacheQueue.offer(writeAttributesRequest);
     }
 
 
@@ -625,10 +558,7 @@ public class LocalUsbConnector {
      * A blocked buffer queue for storing write request messages.
      * <p>When the usb connection is disconnected, this queue needs to be cleared.</p>
      */
-    private LinkedBlockingQueue<WriteAttributesRequestRunnable> mSendWriteRequestCacheQueue;
-
-    private ExecutorService mSendWriteRequestExecutor;
-
+    private LinkedBlockingQueue<WriteAttributesRequest> mSendWriteRequestCacheQueue;
 
     /**
      * Call this method to write data to the bulk out endpoint of the USB.
@@ -664,6 +594,12 @@ public class LocalUsbConnector {
 
     private WriteAttributesRequest mSendingWriteAttributesRequest;
 
+    /**
+     * This thread is used to send write attribute request.
+     * <p>An attribute protocol request and response or indication-confirmation pair is
+     * considered a single transaction. A transaction shall always be performed on
+     * one ATT Bearer, and shall not be split over multiple ATT Bearers</p>
+     */
     private class SendWriteAttributesRequestThread extends Thread {
         @Override
         public void run() {
@@ -671,8 +607,24 @@ public class LocalUsbConnector {
             while (mRunningFlag.get()) {
                 mSendNextWriteRequestLock.lock();
                 try {
-                    WriteAttributesRequestRunnable writeRequestRunnable = mSendWriteRequestCacheQueue.take();
-                    mSendWriteRequestExecutor.execute(writeRequestRunnable);
+                    WriteAttributesRequest writeAttributesRequest = mSendWriteRequestCacheQueue.take();
+                    writeAttributesRequest.createRequest();
+                    byte[] sendData = writeAttributesRequest.getSendData();
+                    String sendDataHexStr = ByteUtil.printHexString(sendData);
+                    Log.i(TAG, "write attribute request: " + sendDataHexStr);
+                    int writeRet = writeData2BulkOutEndpoint(sendData);
+
+                    // Record the write request currently sent.
+                    AttributeCommCallback attributeCommCallback = mSendingWriteAttributesRequest.getAttributeCommCallback();
+                    if (writeRet >= 0) {
+                        mSendingWriteAttributesRequest = writeAttributesRequest;
+                        if (attributeCommCallback != null) {
+                            attributeCommCallback.onSendSuccess();
+                        }
+                    } else {
+                        attributeCommCallback.onSendFailed(writeRet);
+                    }
+
                     mSendNextWriteRequestCondition.await();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -705,96 +657,122 @@ public class LocalUsbConnector {
         }
     }
 
-
-    /**
-     * Use this thread to send write attribute request.
-     */
-    private class WriteAttributesRequestRunnable implements Runnable {
-
-        private WriteAttributesRequest mWriteAttributesRequest;
-
-        WriteAttributesRequestRunnable(WriteAttributesRequest writeRequest) {
-            this.mWriteAttributesRequest = writeRequest;
+    private void closeSendWriteCommandExecutor() {
+        if (mSendWriteCommandExecutor != null) {
+            mSendWriteCommandExecutor.shutdown();
+            mSendWriteCommandExecutor = null;
         }
+    }
 
-        @Override
-        public void run() {
-            mWriteAttributesRequest.createRequest();
-            byte[] sendData = mWriteAttributesRequest.getSendData();
-            String sendDataHexStr = ByteUtil.printHexString(sendData);
-            Log.i(TAG, "write attribute request: " + sendDataHexStr);
-            int writeRet = writeData2BulkOutEndpoint(sendData);
-
-            // Record the write request currently sent.
-            AttributeCommCallback attributeCommCallback = mSendingWriteAttributesRequest.getAttributeCommCallback();
-            if (writeRet >= 0) {
-                mSendingWriteAttributesRequest = mWriteAttributesRequest;
-                if (attributeCommCallback != null) {
-                    attributeCommCallback.onSendSuccess();
-                }
-            } else {
-                attributeCommCallback.onSendFailed(writeRet);
-            }
+    private void closeSendWriteRequestThread() {
+        mRunningFlag.set(false);
+        try {
+            mSendNextWriteRequestCondition.signal();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            mSendNextWriteRequestLock.unlock();
         }
     }
 
 
-    private static final int LENGTH_WRITE_RESPONSE_PDU = 1;
+    /**
+     * This method is used to clear the write request that has not been sent from the queue.
+     * <p>The purpose of this: A transaction not completed within 30 seconds shall time out. Such a
+     * transaction shall be considered to have failed and the local higher layers shall be informed
+     * of this failure. No more attribute protocol requests, commands,
+     * indications or notifications shall be sent to the target device on this ATT Bearer.</p>
+     * <p></p>
+     * <p>If the ATT Bearer is disconnected during a transaction, then the transaction
+     * shall be considered to be closed, and any values that were being modified on
+     * the server will be in an undetermined state, and any queue that was prepared
+     * by the client using this ATT Bearer shall be cleared.</p>
+     * <p> From: 《Bluetooth Core Specification V5.0 Vol3, PartF 3.3.3 Transaction》 </p>
+     */
+    private void clearUnsentWriteRequestCacheQueue() {
+        if (mSendWriteRequestCacheQueue != null) {
+            mSendWriteRequestCacheQueue.clear();
+            mSendWriteRequestCacheQueue = null;
+        }
+    }
+
 
     /**
-     * The work of this thread is to parse the content of the write response returned by the server.
+     * Call this method to start listening for data from the USB endpoint.
+     * <p>Note: This operation needs to wait for the USB connection to be established.</p>
      *
-     * @see LocalUsbConnector#writeAttributesRequest(WriteAttributesRequest)
+     * @return connect result, The connection may fail because some operations may not be ready. If the connection fails,
+     * Some error codes will be returned.
+     * @see UsbError
      */
-    private class ParseWriteResponseRunnable implements Runnable {
-
-        private byte[] mRecvData;
-
-        ParseWriteResponseRunnable(byte[] recvData) {
-            this.mRecvData = recvData;
+    public int connect() {
+        if (mUsbDeviceConnection == null) {
+            Log.e(TAG, UsbError.STR_USB_CONNECTION_NOT_ESTABLISHED);
+            return UsbError.CODE_USB_CONNECTION_NOT_ESTABLISHED;
         }
 
-        @Override
-        public void run() {
-            mSendNextWriteRequestLock.lock();
-            try {
-                if (mRecvData.length == LENGTH_WRITE_RESPONSE_PDU) {
-                    if (mSendingWriteAttributesRequest != null) {
-                        int parseResult = mSendingWriteAttributesRequest.parseResponse(mRecvData);
-                        if (parseResult == AttributeParseResult.PARSE_SUCCESS) {
-                            mSendNextWriteRequestCondition.signal();
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                mSendNextWriteRequestLock.unlock();
-            }
+        if (mUsbEndpointBulkIn == null) {
+            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", bulk in endpoint can not found.");
+            return UsbError.CODE_CAN_NOT_FOUND_USB_ENDPOINT;
         }
+
+        if (mUsbEndpointInterruptIn == null) {
+            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", interrupt in endpoint can not found");
+            return UsbError.CODE_CAN_NOT_FOUND_USB_ENDPOINT;
+        }
+
+        startReceiveWriteCommandData();
+        startReceiveWriteRequestData();
+        startListenBulkInData();
+        startListenInterruptInData();
+        return UsbError.CODE_NO_ERROR;
     }
 
 
-
-
-
-
-
-    public void releaseAdapter() {
-        destroyReceiver();
-        mStartWorkFlag = false;
-        mUsbDataReceiverList.clear();
-        mUsbDataReceiverList = null;
-
-        if (mSendWriteCommandThreadPool != null && !mSendWriteCommandThreadPool.isShutdown()) {
-            mSendWriteCommandThreadPool.isShutdown();
-            mSendWriteCommandThreadPool = null;
+    /**
+     * Call this method to end all operations related to USB, such as clearing the write request
+     * that has not been sent out from the cache queue, write command, and stop listening to data
+     * from the USB endpoint.
+     *
+     * @see LocalUsbConnector#connect()
+     */
+    public void disConnect() {
+        // Stop all working threads(listening bulk in thread, listening interrupt in thread, take write attribute thread)
+        if (mUsbDeviceConnection == null) {
+            Log.e(TAG, UsbError.STR_USB_CONNECTION_NOT_ESTABLISHED);
+            return;
         }
 
-        if (mAttRequestPduCacheQueue != null) {
-            mAttRequestPduCacheQueue.clear();
-            mAttRequestPduCacheQueue = null;
+        if (mUsbEndpointBulkIn == null) {
+            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", bulk in endpoint can not found.");
+            return;
         }
+
+        if (mUsbEndpointInterruptIn == null) {
+            Log.e(TAG, UsbError.STR_CAN_NOT_FOUND_USB_ENDPOINT + ", interrupt in endpoint can not found");
+            return;
+        }
+
+        mRunningFlag.set(false);
+        if (!mUsbDeviceConnection.releaseInterface(mUsbInterfaceBulkIn)) {
+            Log.e(TAG, UsbError.STR_USB_RELEASE_INTERFACE_FAILED + ", release bulk in failed");
+            return;
+        }
+
+        if (!mUsbDeviceConnection.releaseInterface(mUsbInterfaceInterruptIn)) {
+            Log.e(TAG, UsbError.STR_USB_RELEASE_INTERFACE_FAILED + ", release interrupt in failed");
+            return;
+        }
+
+        if (!mUsbDeviceConnection.releaseInterface(mUsbInterfaceBulkOut)) {
+            Log.e(TAG, UsbError.STR_USB_RELEASE_INTERFACE_FAILED + ", release bulk out failed");
+            return;
+        }
+
+        closeSendWriteCommandExecutor();
+        closeSendWriteRequestThread();
+        clearUnsentWriteRequestCacheQueue();
+        destroyUsbReceiver();
     }
 
 

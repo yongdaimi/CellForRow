@@ -53,22 +53,23 @@ public class WriteAttributesRequest extends BaseWriteAttributesRequest {
 
     @Override
     public int parseResponse(byte[] response) {
-        if (response != null && response.length == 1) {
+        if (response.length == LENGTH_WRITE_RESPONSE_PDU) {
             byte att_opcode = response[0];
             if (att_opcode == AttributeOpcode.WRITE_RESPONSE) {
                 if (mAttributeCommCallback != null) {
                     mAttributeCommCallback.onReceiveSuccess();
                 }
                 return AttributeParseResult.PARSE_SUCCESS;
-            } else {
-                ByteBuffer buffer = ByteBuffer.wrap(response);
-                buffer.order(ByteOrder.LITTLE_ENDIAN);
-                byte request_opcode_in_error = buffer.get(1);
-                short att_handle_in_error = buffer.get(2);
-                byte error_code = buffer.get(4);
-                if (mAttributeCommCallback != null)
-                    mAttributeCommCallback.onReceiveFailed(att_opcode, request_opcode_in_error, att_handle_in_error, error_code);
             }
+        } else {
+            ByteBuffer buffer = ByteBuffer.wrap(response);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            byte att_opcode = buffer.get(0);
+            byte request_opcode_in_error = buffer.get(1);
+            short att_handle_in_error = buffer.get(2);
+            byte error_code = buffer.get(4);
+            if (mAttributeCommCallback != null)
+                mAttributeCommCallback.onReceiveFailed(att_opcode, request_opcode_in_error, att_handle_in_error, error_code);
         }
         return AttributeParseResult.PARSE_FAILED;
     }
