@@ -1,5 +1,7 @@
-package com.realsil.sdk.core.usb.connector.att;
+package com.realsil.sdk.core.usb.connector.att.impl;
 
+
+import com.realsil.sdk.core.usb.connector.att.AttributeCommCallback;
 
 /**
  * An abstract class template for creating Write Attribute PDUs
@@ -45,19 +47,6 @@ abstract class BaseWriteAttributes {
      * @see BaseWriteAttributes#selectComfortableReportID
      */
     byte mReportID;
-
-
-    /**
-     * Attribute Opcode (0x12 = Write Request)
-     */
-    static final byte OPCODE_WRITE_REQUEST = 0x12;
-
-
-    /**
-     * Attribute Opcode (0x12 = Write Command)
-     */
-    static final byte OPCODE_WRITE_COMMAND = 0x52;
-
 
     /**
      * The handler of the attribute to be written(Write Request) or set(Write Command).
@@ -163,6 +152,29 @@ abstract class BaseWriteAttributes {
      */
     public byte[] getSendData() {
         return mSendData;
+    }
+
+    /**
+     * A Callback interface for listening to att communication.
+     */
+    AttributeCommCallback mAttributeCommCallback;
+
+    /**
+     * Set Callback interface for listen for att communication.
+     *
+     * @param attributeCommCallback A Callback interface for listening to att communication.
+     */
+    public void addAttributeCommCallback(AttributeCommCallback attributeCommCallback) {
+        this.mAttributeCommCallback = attributeCommCallback;
+    }
+
+    /**
+     * Get the callback currently used to listen for att communication.
+     *
+     * @return A Callback currently for listening to att communication.
+     */
+    public AttributeCommCallback getAttributeCommCallback() {
+        return mAttributeCommCallback;
     }
 
 }

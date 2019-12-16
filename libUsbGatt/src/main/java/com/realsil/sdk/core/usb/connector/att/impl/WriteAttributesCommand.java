@@ -1,4 +1,6 @@
-package com.realsil.sdk.core.usb.connector.att;
+package com.realsil.sdk.core.usb.connector.att.impl;
+
+import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -41,7 +43,7 @@ public class WriteAttributesCommand extends BaseWriteAttributesCommand {
 
         /* Put Att PDU */
         // Att opcode
-        byteBuffer.put(2, OPCODE_WRITE_COMMAND);
+        byteBuffer.put(2, AttributeOpcode.WRITE_COMMAND);
         // Att handle
         byteBuffer.putShort(3, mAttHandle);
         // Att value

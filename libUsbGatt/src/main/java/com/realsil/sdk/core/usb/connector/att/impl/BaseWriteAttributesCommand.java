@@ -1,4 +1,4 @@
-package com.realsil.sdk.core.usb.connector.att;
+package com.realsil.sdk.core.usb.connector.att.impl;
 
 /**
  * An abstract class template for creating Write Attribute PDUs Command
