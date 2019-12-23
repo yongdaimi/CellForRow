@@ -10,7 +10,7 @@ import java.nio.ByteOrder;
  * attribute, typically into a control-point attribute.
  * @author xp.chen
  */
-public class WriteAttributesCommand extends BaseWriteAttributesCommand {
+public class WriteAttributeCommand extends BaseWriteAttributeCommand {
 
 
     /**
@@ -19,7 +19,7 @@ public class WriteAttributesCommand extends BaseWriteAttributesCommand {
      * @param attHandle The handler of the attribute to be written.
      * @param attValue The value to be written to the attribute.
      */
-    public WriteAttributesCommand(short attHandle, byte[] attValue) {
+    public WriteAttributeCommand(short attHandle, byte[] attValue) {
         this.mAttHandle = attHandle;
         this.mAttValue = attValue;
     }

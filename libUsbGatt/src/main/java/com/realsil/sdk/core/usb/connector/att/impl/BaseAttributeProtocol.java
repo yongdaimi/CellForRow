@@ -1,14 +1,12 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
 
-import com.realsil.sdk.core.usb.connector.att.AttributeCommCallback;
-
 /**
  * An abstract class template for creating Write Attribute PDUs
  *
  * @author xp.chen
  */
-abstract class BaseWriteAttributes {
+abstract class BaseAttributeProtocol {
 
 
     /**
@@ -44,7 +42,7 @@ abstract class BaseWriteAttributes {
      * Transmission port ID of the data to be transmitted
      * <p>Need to be determined based on the length of the sent data</p>
      *
-     * @see BaseWriteAttributes#selectComfortableReportID
+     * @see BaseAttributeProtocol#selectComfortableReportID
      */
     byte mReportID;
 
@@ -68,7 +66,7 @@ abstract class BaseWriteAttributes {
 
     /**
      * Length of the final data send to the server.
-     * <p>sendDataLength = ReportIDLength(1B) + MessageLength(1B) + ATT PDU Length {@link BaseWriteAttributes#mAttPduLength}</p>
+     * <p>sendDataLength = ReportIDLength(1B) + MessageLength(1B) + ATT PDU Length {@link BaseAttributeProtocol#mAttPduLength}</p>
      */
     int mSendDataLength;
 
@@ -129,7 +127,7 @@ abstract class BaseWriteAttributes {
     /**
      * Select the appropriate Report ID based on the size of the packets sent.
      *
-     * @see BaseWriteAttributes#mReportID
+     * @see BaseAttributeProtocol#mReportID
      */
     static byte selectComfortableReportID(int packageSize) {
         if (packageSize > MAX_PACKET_SIZE_255) {
@@ -153,31 +151,6 @@ abstract class BaseWriteAttributes {
     public byte[] getSendData() {
         return mSendData;
     }
-
-    /**
-     * A Callback interface for listening to att communication.
-     */
-    AttributeCommCallback mAttributeCommCallback;
-
-    /**
-     * Set Callback interface for listen for att communication.
-     *
-     * @param attributeCommCallback A Callback interface for listening to att communication.
-     */
-    public void addAttributeCommCallback(AttributeCommCallback attributeCommCallback) {
-        this.mAttributeCommCallback = attributeCommCallback;
-    }
-
-    /**
-     * Get the callback currently used to listen for att communication.
-     *
-     * @return A Callback currently for listening to att communication.
-     */
-    public AttributeCommCallback getAttributeCommCallback() {
-        return mAttributeCommCallback;
-    }
-
-    static final int LENGTH_WRITE_RESPONSE_PDU = 1;
 
 }
 

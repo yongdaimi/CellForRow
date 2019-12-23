@@ -1,8 +1,5 @@
 package com.realsil.android.dongle.activity;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -17,11 +14,18 @@ import android.view.View;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.realsil.android.dongle.R;
 import com.realsil.android.dongle.action.MessageAction;
 import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
 import com.realsil.android.dongle.util.ByteUtils;
-import com.realsil.android.dongle.util.TimeUtil;
+import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
+import com.realsil.sdk.core.usb.connector.att.WriteAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.OnServerTransactionChangeCallback;
+import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
+import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,23 +34,113 @@ public class UsbCommActivity extends AppCompatActivity {
 
 
 
-    public static final String TAG = "xp.chen";
+    public static final String TAG = UsbCommActivity.class.getSimpleName();
 
     private ListView lv_msg_list;
     private UsbMsgListAdapter mMsgListAdapter;
+
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_usb_comm);
-        int ret = LocalUsbConnector.getInstance().initAdapter(getApplicationContext());
-        LocalUsbConnector.getInstance().setAllowOnlyHaveOutEndpoint(false);
-        if (ret < 0) {
-            Log.i(TAG, "usb init failed");
-        }
+
         initView();
+
+        WriteAttributeRequest writeAttributeRequest = new WriteAttributeRequest((short) 0, new byte[]{0x00, 0x01});
+        writeAttributeRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
+            @Override
+            public void onRequestSendSuccess() {
+                super.onRequestSendSuccess();
+
+            }
+
+            @Override
+            public void onWriteFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onWriteFailed(att_opcode, request_code, att_handler, error_code);
+
+            }
+        });
+
+
     }
+
+
+
+    private void initUsbConnector() {
+        int initRet = LocalUsbConnector.getInstance().initConnector(getApplicationContext());
+        int searchRet = LocalUsbConnector.getInstance().searchUsbDevice();
+        int authorizeDevice = LocalUsbConnector.getInstance().authorizeDevice();
+        int setupRet = LocalUsbConnector.getInstance().setupDevice();
+        int connectRet = LocalUsbConnector.getInstance().connect();
+    }
+
+
+
+    private void addOnServerTransactionChangeCallback() {
+        LocalUsbConnector.getInstance().addOnServerTransactionChangeCallback(new OnServerTransactionChangeCallback() {
+            @Override
+            public void onReceiveNotificationMessage(byte[] notificationData) {
+
+            }
+
+            @Override
+            public void onReceiveIndicationMessage(byte[] indicationData) {
+
+            }
+
+            @Override
+            public void onDeviceDisconnected() {
+
+            }
+
+            @Override
+            public void onReceiveWriteResponseTimeout() {
+
+            }
+        });
+    }
+
+
+
+    private void writeAttributeCommand(short att_handle, byte[] att_value) {
+        WriteAttributeCommand writeAttributesCommand = new WriteAttributeCommand(att_handle, att_value);
+        LocalUsbConnector.getInstance().writeAttributesCommand(writeAttributesCommand);
+    }
+
+
+    private void writeAttributeRequest(short att_handle, byte[] att_value) {
+        WriteAttributeRequest writeAttributesRequest = new WriteAttributeRequest(att_handle, att_value);
+        writeAttributesRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
+            @Override
+            public void onRequestSendSuccess() {
+
+            }
+
+            @Override
+            public void onRequestSendFailed(int sendResult) {
+
+            }
+
+            @Override
+            public void onWriteSuccess() {
+
+            }
+
+            @Override
+            public void onWriteFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+
+            }
+
+            @Override
+            public void onWriteTimeout() {
+
+            }
+        });
+        LocalUsbConnector.getInstance().writeAttributesRequest(writeAttributesRequest);
+    }
+
 
     private void initView() {
         lv_msg_list = findViewById(R.id.lv_msg_list);
@@ -117,23 +211,6 @@ public class UsbCommActivity extends AppCompatActivity {
     };
 
 
-
-    private UsbDataReceiver mUsbDataReceiver = new UsbDataReceiver() {
-        @Override
-        public void onReceiveUsbData(byte[] receiveData, int dataLength) {
-            String recvStr = ByteUtils.convertByteArr2String(receiveData);
-            String cmdStr = TimeUtil.getSimpleTimeStr() + ": " + recvStr;
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mMsgListAdapter.addMsgItem(cmdStr);
-                }
-            });
-        }
-    };
-
-
-
     public void setupUsbAdapter(View view) {
         int searchRet = LocalUsbConnector.getInstance().searchUsbDevice();
         if (searchRet < 0) {
@@ -152,10 +229,6 @@ public class UsbCommActivity extends AppCompatActivity {
         }.start();
     }
 
-    public void startReadingFromUsb(View view) {
-        LocalUsbConnector.getInstance().addUsbDataReceiver(mUsbDataReceiver);
-        LocalUsbConnector.getInstance().startReadingFromFromUsb();
-    }
 
     @Override
     protected void onDestroy() {
@@ -167,15 +240,5 @@ public class UsbCommActivity extends AppCompatActivity {
     private AtomicInteger mSendRequestPduInteger = new AtomicInteger();
 
 
-    public void sendCommandPdu(View view) {
-        CommandPDU commandPDU = new CommandPDU();
-        commandPDU.setSendCmdMsg("Send Command id : "+mSendCommandPduInteger.intValue());
-        mSendCommandPduInteger.incrementAndGet();
-        LocalUsbConnector.getInstance().writeCommandPDU(commandPDU);
-    }
 
-    public void resetAtomic(View view) {
-        mSendCommandPduInteger.set(0);
-        mSendRequestPduInteger.set(0);
-    }
 }

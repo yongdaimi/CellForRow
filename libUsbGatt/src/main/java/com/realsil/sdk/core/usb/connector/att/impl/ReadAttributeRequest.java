@@ -7,28 +7,26 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * The Write Request is used to request the server to write the value of an
- * attribute and acknowledge that this has been achieved in a Write Response.
+ * The Read Request is used to request the server to read the value of an
+ * attribute and return its value in a Read Response
  *
  * @author xp.chen
  */
-public class WriteAttributesRequest extends BaseWriteAttributesRequest {
+public class ReadAttributeRequest extends BaseReadAttributeRequest {
 
 
     /**
-     * Use this constructor to create a Write Attributes Request.
+     * Use this constructor to create a Read Attributes Request.
      *
-     * @param attHandle The handler of the attribute to be written.
-     * @param attValue  The value to be written to the attribute.
+     * @param attHandle The handler of the attribute to be read.
      */
-    public WriteAttributesRequest(short attHandle, byte[] attValue) {
+    public ReadAttributeRequest(short attHandle, byte[] attValue) {
         this.mAttHandle = attHandle;
-        this.mAttValue = attValue;
     }
 
     @Override
     public void createRequest() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE + mAttValue.length;
+        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
         this.mSendData = new byte[mSendDataLength];
         this.mReportID = selectComfortableReportID(mSendDataLength);
@@ -44,32 +42,27 @@ public class WriteAttributesRequest extends BaseWriteAttributesRequest {
 
         /// Put Att PDU
         // Att opcode
-        byteBuffer.put(2, AttributeOpcode.WRITE_REQUEST);
+        byteBuffer.put(2, AttributeOpcode.READ_REQUEST);
         // Att handle
         byteBuffer.putShort(3, mAttHandle);
-        // Att value
-        System.arraycopy(mAttValue, 0, mSendData, 5, mAttValue.length);
     }
 
     @Override
     public int parseResponse(byte[] response) {
-        if (response.length == LENGTH_WRITE_RESPONSE_PDU) {
-            byte att_opcode = response[0];
-            if (att_opcode == AttributeOpcode.WRITE_RESPONSE) {
-                if (mAttributeCommCallback != null) {
-                    mAttributeCommCallback.onReceiveSuccess();
-                }
-                return AttributeParseResult.PARSE_SUCCESS;
+        byte att_opcode = response[0];
+        if (att_opcode == AttributeOpcode.READ_RESPONSE) {
+            if (mOnClientTransactionChangeCallback != null) {
+                mOnClientTransactionChangeCallback.onReceiveSuccess();
             }
-        } else {
+            return AttributeParseResult.PARSE_SUCCESS;
+        } else if (att_opcode == AttributeOpcode.ERROR_RESPONSE) {
             ByteBuffer buffer = ByteBuffer.wrap(response);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-            byte att_opcode = buffer.get(0);
             byte request_opcode_in_error = buffer.get(1);
             short att_handle_in_error = buffer.get(2);
             byte error_code = buffer.get(4);
-            if (mAttributeCommCallback != null)
-                mAttributeCommCallback.onReceiveFailed(att_opcode, request_opcode_in_error, att_handle_in_error, error_code);
+            if (mOnClientTransactionChangeCallback != null)
+                mOnClientTransactionChangeCallback.onReceiveFailed(att_opcode, request_opcode_in_error, att_handle_in_error, error_code);
         }
         return AttributeParseResult.PARSE_FAILED;
     }

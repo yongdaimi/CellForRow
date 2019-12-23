@@ -216,6 +216,7 @@ public class UsbGatt {
             Log.d(TAG, "writeCharacteristic() - uuid: " + characteristic.getUuid());
         }
 
+
         // TODO: 2019-12-04
 //        transparentTransport(...)
 

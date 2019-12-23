@@ -1,9 +1,24 @@
 package com.realsil.sdk.core.usb.connector;
 
-public interface UsbLogInfo {
+import java.util.Locale;
 
-    String INFO_GET_USB_DEVICE_SUCCESSFULLY = "[LocalUsbConnector]: The specified device was found, waiting for authorization by user";
-    String INFO_DEVICE_IS_AUTHORIZED = "[LocalUsbConnector]: Device is authorized";
-    String INFO_FOUND_THE_SPECCIFIED_USB_ENDPOINT = "[LocalUsbConnector]: Found the specified UsbEndpoint";
+class UsbLogInfo {
+
+
+    private static final String LOG_TITLE     = LocalUsbConnector.class.getSimpleName();
+    private static final String LOG_SEPARATOR = "->";
+
+    static String TYPE_INIT_USB_CONNECTOR = "Init Usb Connector";
+    static String TYPE_SEND_WRITE_REQUEST = "Send Write Request";
+    static String TYPE_SEND_WRITE_COMMAND = "Send Write Command";
+    static String TYPE_RUNNING_TIPS       = "Running Tips";
+    static String TYPE_CALL_CONNECT       = "Call Connect";
+    static String TYPE_CALL_DISCONNECT    = "Call Disconnect";
+
+
+    static String msg(String infoType, String infoContent) {
+        return String.format(Locale.getDefault(), "%s: [%s] %s %s", LOG_TITLE, infoType, LOG_SEPARATOR, infoContent);
+    }
+
 
 }
