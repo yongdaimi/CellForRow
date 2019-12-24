@@ -25,6 +25,11 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
     }
 
     @Override
+    public void setRequestOpcode() {
+        this.request_opcode = AttributeOpcode.READ_REQUEST;
+    }
+
+    @Override
     public void createRequest() {
         this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
@@ -48,23 +53,25 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
     }
 
     @Override
-    public int parseResponse(byte[] response) {
-        byte att_opcode = response[0];
-        if (att_opcode == AttributeOpcode.READ_RESPONSE) {
-            if (mOnClientTransactionChangeCallback != null) {
-                mOnClientTransactionChangeCallback.onReceiveSuccess();
+    public void parseResponse(byte[] response) {
+        super.parseResponse(response);
+        if (response_opcode == AttributeOpcode.READ_RESPONSE) {
+            byte[] att_value;
+            if (response.length > 1) {
+                att_value = new byte[response.length - 1];
+                System.arraycopy(response, 1, att_value, 0, att_value.length);
+            } else {
+                att_value = new byte[0];
             }
-            return AttributeParseResult.PARSE_SUCCESS;
-        } else if (att_opcode == AttributeOpcode.ERROR_RESPONSE) {
-            ByteBuffer buffer = ByteBuffer.wrap(response);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            byte request_opcode_in_error = buffer.get(1);
-            short att_handle_in_error = buffer.get(2);
-            byte error_code = buffer.get(4);
-            if (mOnClientTransactionChangeCallback != null)
-                mOnClientTransactionChangeCallback.onReceiveFailed(att_opcode, request_opcode_in_error, att_handle_in_error, error_code);
+
+            if (getReadAttributeRequestCallback() != null) {
+                getReadAttributeRequestCallback().onReadSuccess(att_value);
+            }
+            mParseResult = AttributeParseResult.PARSE_SUCCESS;
+        } else {
+            if (getReadAttributeRequestCallback() != null)
+                getReadAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
         }
-        return AttributeParseResult.PARSE_FAILED;
     }
 
 }

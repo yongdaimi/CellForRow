@@ -27,6 +27,11 @@ public class WriteAttributeRequest extends BaseWriteAttributeRequest {
     }
 
     @Override
+    public void setRequestOpcode() {
+        this.request_opcode = AttributeOpcode.WRITE_REQUEST;
+    }
+
+    @Override
     public void createRequest() {
         this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE + mAttValue.length;
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
@@ -55,13 +60,13 @@ public class WriteAttributeRequest extends BaseWriteAttributeRequest {
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
         if (response_opcode == AttributeOpcode.WRITE_RESPONSE) {
-            if (mWriteAttributeRequestCallback != null) {
-                mWriteAttributeRequestCallback.onWriteSuccess();
+            if (getWriteAttributeRequestCallback() != null) {
+                getWriteAttributeRequestCallback().onWriteSuccess();
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         } else {
-            if (mWriteAttributeRequestCallback != null)
-                mWriteAttributeRequestCallback.onWriteFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
+            if (getWriteAttributeRequestCallback() != null)
+                getWriteAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
         }
     }
 

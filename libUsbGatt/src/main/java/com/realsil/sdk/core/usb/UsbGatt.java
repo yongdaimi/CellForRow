@@ -169,6 +169,9 @@ public class UsbGatt {
             Log.d(TAG, "readCharacteristic() - uuid: " + characteristic.getUuid());
         }
 
+
+
+
         // TODO: 2019-12-04
 //        if (mService == null || mClientIf == 0) return false;
 //
@@ -214,6 +217,22 @@ public class UsbGatt {
 
         if (VDBG) {
             Log.d(TAG, "writeCharacteristic() - uuid: " + characteristic.getUuid());
+        }
+
+        // Add(xp.chen)
+        int writeType = characteristic.getWriteType();
+        switch (writeType) {
+            case UsbGattCharacteristic.WRITE_TYPE_DEFAULT:
+
+                break;
+            case UsbGattCharacteristic.WRITE_TYPE_NO_RESPONSE:
+
+                break;
+            case UsbGattCharacteristic.WRITE_TYPE_SIGNED:
+
+                break;
+            default:
+                break;
         }
 
 

@@ -1,27 +1,32 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
+import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
+
 /**
- * An abstract class template for creating Read Attribute Request
+ * An abstract class template for creating Read Attribute Request.
  *
  * @author xp.chen
  */
-abstract class BaseReadAttributeRequest extends BaseAttributeProtocol {
+abstract class BaseReadAttributeRequest extends BaseAttributeRequest {
+
 
     /**
-     * Use this method to create a Write Attributes Request.
+     * Add a callback interface to listen the status when the client sends a {@link ReadAttributeRequest} to the server.
+     *
+     * @param readAttributeRequestCallback A callback is used to listen the data sending status when the client sends a read attribute request to the server.
      */
-    public abstract void createRequest();
+    public void addReadAttributeRequestCallback(ReadAttributeRequestCallback readAttributeRequestCallback) {
+        this.mBaseRequestCallback = readAttributeRequestCallback;
+    }
 
     /**
-     * Parse the response returned by the server in this method.
+     * Get the callback currently used to listen for {@link ReadAttributeRequest}.
      *
-     * @param response response data from server.
-     * @return Parse result, May be {@link com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_SUCCESS}
-     * or {@link com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_FAILED}.
-     *
-     * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_SUCCESS
-     * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_FAILED
+     * @return A Callback currently for listening to {@link ReadAttributeRequest}.
      */
-    public abstract int parseResponse(byte[] response);
+    public ReadAttributeRequestCallback getReadAttributeRequestCallback() {
+        return (ReadAttributeRequestCallback) mBaseRequestCallback;
+    }
+
 
 }

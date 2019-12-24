@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,9 +22,15 @@ import com.realsil.android.dongle.R;
 import com.realsil.android.dongle.action.MessageAction;
 import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
 import com.realsil.android.dongle.util.ByteUtils;
+import com.realsil.sdk.core.usb.GlobalUsbGatt;
+import com.realsil.sdk.core.usb.UsbGatt;
+import com.realsil.sdk.core.usb.UsbGattCallback;
+import com.realsil.sdk.core.usb.UsbGattCharacteristic;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
-import com.realsil.sdk.core.usb.connector.att.WriteAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.OnServerTransactionChangeCallback;
+import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
 
@@ -49,16 +56,17 @@ public class UsbCommActivity extends AppCompatActivity {
         initView();
 
         WriteAttributeRequest writeAttributeRequest = new WriteAttributeRequest((short) 0, new byte[]{0x00, 0x01});
+
         writeAttributeRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
             @Override
-            public void onRequestSendSuccess() {
-                super.onRequestSendSuccess();
+            public void onSendSuccess() {
+                super.onSendSuccess();
 
             }
 
             @Override
-            public void onWriteFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
-                super.onWriteFailed(att_opcode, request_code, att_handler, error_code);
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
 
             }
         });
@@ -104,6 +112,74 @@ public class UsbCommActivity extends AppCompatActivity {
 
 
 
+
+    private void connect() {
+        /*UsbDevice usbDevice = new UsbDevice();
+        GlobalUsbGatt.getInstance().connect(usbDevice, new UsbGattCallback() {
+            @Override
+            public void onConnectionStateChange(UsbGatt gatt, int status, int newState) {
+                super.onConnectionStateChange(gatt, status, newState);
+            }
+
+            @Override
+            public void onServicesDiscovered(UsbGatt gatt, int status) {
+                super.onServicesDiscovered(gatt, status);
+            }
+
+            @Override
+            public void onCharacteristicRead(UsbGatt gatt, UsbGattCharacteristic characteristic, int status) {
+                super.onCharacteristicRead(gatt, characteristic, status);
+            }
+
+            @Override
+            public void onCharacteristicWrite(UsbGatt gatt, UsbGattCharacteristic characteristic, int status) {
+                super.onCharacteristicWrite(gatt, characteristic, status);
+            }
+
+            @Override
+            public void onCharacteristicChanged(UsbGatt gatt, UsbGattCharacteristic characteristic) {
+                super.onCharacteristicChanged(gatt, characteristic);
+            }
+
+            @Override
+            public void onMtuChanged(UsbGatt gatt, int mtu, int status) {
+                super.onMtuChanged(gatt, mtu, status);
+            }
+        });*/
+    }
+
+
+    private void readRequest() {
+        ReadAttributeRequest readAttributeRequest = new ReadAttributeRequest((short) 0, new byte[]{0x00, 0x00});
+        readAttributeRequest.addReadAttributeRequestCallback(new ReadAttributeRequestCallback() {
+            @Override
+            public void onReadSuccess(byte[] attributeValue) {
+                super.onReadSuccess(attributeValue);
+            }
+
+            @Override
+            public void onSendSuccess() {
+                super.onSendSuccess();
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+            }
+
+            @Override
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+            }
+        });
+    }
+
+
     private void writeAttributeCommand(short att_handle, byte[] att_value) {
         WriteAttributeCommand writeAttributesCommand = new WriteAttributeCommand(att_handle, att_value);
         LocalUsbConnector.getInstance().writeAttributesCommand(writeAttributesCommand);
@@ -114,12 +190,12 @@ public class UsbCommActivity extends AppCompatActivity {
         WriteAttributeRequest writeAttributesRequest = new WriteAttributeRequest(att_handle, att_value);
         writeAttributesRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
             @Override
-            public void onRequestSendSuccess() {
+            public void onSendSuccess() {
 
             }
 
             @Override
-            public void onRequestSendFailed(int sendResult) {
+            public void onSendFailed(int sendResult) {
 
             }
 
@@ -129,12 +205,12 @@ public class UsbCommActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onWriteFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
 
             }
 
             @Override
-            public void onWriteTimeout() {
+            public void onReceiveTimeout() {
 
             }
         });
@@ -233,7 +309,7 @@ public class UsbCommActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        LocalUsbConnector.getInstance().releaseAdapter();
+        LocalUsbConnector.getInstance().disConnect();
     }
 
     private AtomicInteger mSendCommandPduInteger = new AtomicInteger();

@@ -2,15 +2,25 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 
 import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.callback.BaseRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
  * An abstract class template for creating a pdu with a response
+ *
  * @author xp.chen
  */
-public abstract class BaseAttributeRequest extends BaseAttributeProtocol{
+public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
+
+    /**
+     * The request opcode sent by client. It will be included in the request pdu to be sent, defined in {@link AttributeOpcode}.
+     *
+     * @see AttributeOpcode#READ_REQUEST
+     * @see AttributeOpcode#WRITE_REQUEST
+     */
+    byte request_opcode;
 
     /**
      * The response opcode return by server. If server processing fails, it will be equal to {@link AttributeOpcode#ERROR_RESPONSE}.
@@ -49,6 +59,33 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol{
         return mParseResult;
     }
 
+    /**
+     * A callback is used to listen the data sending status when the client sends request data to the server.
+     */
+    BaseRequestCallback mBaseRequestCallback;
+
+    /**
+     * Get the callback currently used to listen for {@link BaseRequestCallback}.
+     * @return A Callback currently for listening to {@link BaseRequestCallback}.
+     */
+    public BaseRequestCallback getRequestCallback() {
+        return mBaseRequestCallback;
+    }
+
+    /**
+     * Call this method to set internal {@link BaseAttributeRequest#request_opcode} member variables.
+     */
+    public abstract void setRequestOpcode();
+
+    /**
+     * Call this method to get the request opcode sent by client.
+     *
+     * @return request code.
+     * @see AttributeOpcode
+     */
+    public byte getRequestOpcode() {
+        return request_opcode;
+    }
 
     /**
      * Use this method to create a Write Attributes Request.
