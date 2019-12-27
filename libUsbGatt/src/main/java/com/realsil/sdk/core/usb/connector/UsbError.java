@@ -4,7 +4,7 @@ public interface UsbError {
 
     int CODE_NO_ERROR = 0;
 
-    int CODE_CONTEXT_IS_NULL                    = -100;
+    int CODE_PARAMS_IS_NULL                     = -100;
     int CODE_CONTEXT_GET_USB_MANAGER_FAILED     = -101;
     int CODE_CAN_NOT_FOUND_USB_DEVICE           = -102;
     int CODE_CAN_NOT_FOUND_SPECIFIED_USB_DEVICE = -103;

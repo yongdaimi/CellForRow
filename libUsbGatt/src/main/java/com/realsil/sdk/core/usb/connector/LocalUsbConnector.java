@@ -22,6 +22,7 @@ import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 import com.realsil.sdk.core.usb.connector.att.OnServerTransactionChangeCallback;
 import com.realsil.sdk.core.usb.connector.att.impl.BaseAttributeRequest;
+import com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
@@ -153,9 +154,7 @@ public class LocalUsbConnector {
      */
     private ListenUsbInterruptInDataThread mListenUsbInterruptInDataThread;
 
-
     private static volatile LocalUsbConnector instance = null;
-
 
     private LocalUsbConnector() {}
 
@@ -169,7 +168,6 @@ public class LocalUsbConnector {
         }
         return instance;
     }
-
 
     /**
      * Call this method to initialize the Usb connector.
@@ -192,11 +190,10 @@ public class LocalUsbConnector {
             mListeningFlag = new AtomicBoolean(false);
         } else {
             Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_INIT_USB_CONNECTOR, "context parameter can not be null"));
-            return UsbError.CODE_CONTEXT_IS_NULL;
+            return UsbError.CODE_PARAMS_IS_NULL;
         }
         return UsbError.CODE_NO_ERROR;
     }
-
 
     private void initObjectLock() {
         mGrantAccessUsbLock = new ReentrantLock();
@@ -312,8 +309,36 @@ public class LocalUsbConnector {
     }
 
     /**
-     * Configure the selected device. The configured device must be authorized.If the device is not authorized,
-     * please call {@link LocalUsbConnector#authorizeDevice()}method to authorize.
+     * Call this method to pass a specified {@link UsbDevice} parameter to establish a usb connection.
+     *
+     * @param usbDevice {@link UsbDevice} object specified by the user.
+     * @return result of usb connection establishment, if the usb connection is established successfully, it will be {@link UsbError#CODE_NO_ERROR},
+     * otherwise it will be one of those {@link UsbError} values.
+     */
+    public int setUsbDevice(UsbDevice usbDevice) {
+        if (usbDevice != null) {
+            this.mSelectUsbDevice = usbDevice;
+            return setupDevice();
+        } else {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_INIT_USB_CONNECTOR, "set usb device failed, params can not be null"));
+            return UsbError.CODE_PARAMS_IS_NULL;
+        }
+    }
+
+    /**
+     * Configure the selected usb device, the configured device must be authorized. Before calling this method,
+     * please call {@link LocalUsbConnector#authorizeDevice()}method to complete usb device authorization.
+     *
+     * <p><br>Note:</br></p>
+     * <p>If you get a {@link UsbDevice} object by calling {@link LocalUsbConnector#searchUsbDevice()}
+     * or {@link LocalUsbConnector#searchUsbDevice(int, int)} method , you will not need to
+     * call {@link LocalUsbConnector#setUsbDevice(UsbDevice)} again, you just need to call
+     * {@link LocalUsbConnector#authorizeDevice()} method to ensure that the currently connected usb device
+     * is authorized.</p>
+     *
+     * <p>If you pass a {@link UsbDevice} object to the {@link LocalUsbConnector} by
+     * the {@link LocalUsbConnector#setUsbDevice(UsbDevice)}, you only need to ensure that the passed {@link UsbDevice}
+     * object is authorized, you don't need to call current method.</p>
      *
      * @return Configure Result, {@link UsbError#CODE_NO_ERROR} for success, or negative value for failure.
      * @see LocalUsbConnector#authorizeDevice()
@@ -463,6 +488,7 @@ public class LocalUsbConnector {
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+
             if (Objects.equals(intent.getAction(), UsbAction.ACTION_REQUEST_USB_PERMISSION)) {
                 mGrantAccessUsbLock.lock();
                 try {
@@ -482,6 +508,7 @@ public class LocalUsbConnector {
             } else if (Objects.equals(intent.getAction(), UsbManager.ACTION_USB_DEVICE_DETACHED)) {
                 Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "device has detached, need to re-establish connection"));
             }
+
         }
     };
 
@@ -596,7 +623,10 @@ public class LocalUsbConnector {
                 parseWriteResponseData(receiveData);
                 break;
             case AttributeOpcode.READ_RESPONSE:
-
+                parseReadResponseData(receiveData);
+                break;
+            case AttributeOpcode.EXCHANGE_MTU_RESPONSE:
+                parseExchangeMtuResponseData(receiveData);
                 break;
             case AttributeOpcode.HANDLE_VALUE_INDICATION:
                 parseIndicationMessageFromServer(receiveData);
@@ -637,14 +667,49 @@ public class LocalUsbConnector {
     }
 
     /**
-     * Call this method to parse the received write response data.
+     * Call this method to parse the received request response data.
+     *
      * @param readResponse Read response data returned by the server.
      * @see LocalUsbConnector#readAttributesRequest(ReadAttributeRequest)
      */
     private void parseReadResponseData(byte[] readResponse) {
-
+        mSendNextRequestLock.lock();
+        try {
+            if (mSendingAttributesRequest != null) {
+                mSendingAttributesRequest.parseResponse(readResponse);
+                int parseResult = mSendingAttributesRequest.getParseResult();
+                if (parseResult == AttributeParseResult.PARSE_SUCCESS) {
+                    mSendNextRequestCondition.signal();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            mSendNextRequestLock.unlock();
+        }
     }
 
+    /**
+     * Call this method to parse the received exchange mtu response data.
+     *
+     * @param exchangeMtuResponse The received exchange mtu response data from server.
+     */
+    private void parseExchangeMtuResponseData(byte[] exchangeMtuResponse) {
+        mSendNextRequestLock.lock();
+        try {
+            if (mSendingAttributesRequest != null) {
+                mSendingAttributesRequest.parseResponse(exchangeMtuResponse);
+                int parseResult = mSendingAttributesRequest.getParseResult();
+                if (parseResult == AttributeParseResult.PARSE_SUCCESS) {
+                    mSendNextRequestCondition.signal();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            mSendNextRequestLock.unlock();
+        }
+    }
 
     private void parseIndicationMessageFromServer(byte[] indicationData) {
         if (mServerTransactionChangeCallbacks != null) {
@@ -791,9 +856,29 @@ public class LocalUsbConnector {
         if (mSendRequestCacheQueue != null) {
             mSendRequestCacheQueue.offer(readAttributesRequest);
         } else {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_WRITE_REQUEST, "send failed, connection has not been established"));
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_READ_REQUEST, "send failed, connection has not been established"));
         }
     }
+
+    /**
+     * Call this method to send a request to inform the server of the client's maximum receive MTU size and request
+     * the server to response with its maximum receive MTU size.
+     *
+     * @param exchangeMtuRequest an request object containing the client's maximum MTU size.
+     */
+    public void sendExchangeMtuRequest(ExchangeMtuRequest exchangeMtuRequest) {
+        if (exchangeMtuRequest == null) {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST, "send failed, argus can not be null"));
+            return;
+        }
+
+        if (mSendRequestCacheQueue != null) {
+            mSendRequestCacheQueue.offer(exchangeMtuRequest);
+        } else {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST, "send failed, connection has not been established"));
+        }
+    }
+
 
     /**
      * A blocked buffer queue for storing request messages.
@@ -848,12 +933,7 @@ public class LocalUsbConnector {
                     attributeRequest.createRequest();
                     byte[] sendData = attributeRequest.getSendData();
                     String sendHexStr = ByteUtil.printHexString(sendData);
-                    String logInfoType;
-                    if (attributeRequest.getRequestOpcode() == AttributeOpcode.WRITE_REQUEST) {
-                        logInfoType = UsbLogInfo.TYPE_SEND_WRITE_REQUEST;
-                    } else {
-                        logInfoType = UsbLogInfo.TYPE_SEND_READ_REQUEST;
-                    }
+                    String logInfoType = getLogInfoTypeByOpcode(attributeRequest.getRequestOpcode());
                     Log.i(TAG, UsbLogInfo.msg(logInfoType, "send request hex string: " + sendHexStr));
 
                     // send request message by bulk out.
@@ -869,8 +949,8 @@ public class LocalUsbConnector {
                         boolean noTimeout = mSendNextRequestCondition.await(MAXIMUM_RESPONSE_TIME_WHEN_SEND_REQUEST, TimeUnit.SECONDS);
                         if (!noTimeout) { // No server response received, write request timeout.
                             Log.e(TAG, UsbLogInfo.msg(logInfoType, "receive server response timeout"));
-                            disConnect();
                             if (requestCallback != null) requestCallback.onReceiveTimeout();
+                            disConnect();
                         } else {
                             Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
                         }
@@ -886,6 +966,27 @@ public class LocalUsbConnector {
                 }
             }
         }
+    }
+
+    /**
+     * Get the log info type sent according to the attribute opcode passed in.
+     * @param attributeOpcode attribute opcode of sent att pdu.
+     * @return log type string defined in {@link UsbLogInfo}
+     */
+    private static String getLogInfoTypeByOpcode(int attributeOpcode) {
+        String logInfoType = UsbLogInfo.TYPE_UNKNOWN_INFO_TYPE;
+        switch (attributeOpcode) {
+            case AttributeOpcode.WRITE_REQUEST:
+                logInfoType = UsbLogInfo.TYPE_SEND_WRITE_REQUEST;
+                break;
+            case AttributeOpcode.READ_REQUEST:
+                logInfoType = UsbLogInfo.TYPE_SEND_READ_REQUEST;
+                break;
+            case AttributeOpcode.EXCHANGE_MTU_REQUEST:
+                logInfoType = UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST;
+                break;
+        }
+        return logInfoType;
     }
 
 

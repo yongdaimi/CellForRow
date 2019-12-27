@@ -1,56 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    >
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/btn_setup_usbadapter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="setupUsbAdapter"
+        android:text="Setup Usb Adapter"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_start_reading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startReadingFromUsb"
+        android:text="StartReadingFromUsb"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_reset_atomic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="resetAtomic"
+        android:text="Reset Atomic"
+        android:textAllCaps="false" />
 
 
-   <Button
-       android:id="@+id/btn_setup_usbadapter"
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:text="Setup Usb Adapter"
-       android:onClick="setupUsbAdapter"
-       android:textAllCaps="false"
-       />
-
-   <Button
-       android:id="@+id/btn_start_reading"
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:text="StartReadingFromUsb"
-       android:onClick="startReadingFromUsb"
-       android:textAllCaps="false"
-       />
-
-   <Button
-       android:id="@+id/btn_reset_atomic"
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:text="Reset Atomic"
-       android:onClick="resetAtomic"
-       android:textAllCaps="false"
-       />
+    <Button
+        android:id="@+id/btn_send_command_pdu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="sendCommandPdu"
+        android:text="Send Command PDU"
+        android:textAllCaps="false" />
 
 
-   <Button
-       android:id="@+id/btn_send_command_pdu"
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:text="Send Command PDU"
-       android:onClick="sendCommandPdu"
-       android:textAllCaps="false"
-       />
-
-
-   <ListView
-       android:id="@+id/lv_msg_list"
-       android:layout_width="match_parent"
-       android:layout_height="match_parent"
-       android:background="@android:color/black"
-       android:layout_marginTop="40dip"
-       />
+    <ListView
+        android:id="@+id/lv_msg_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="40dip"
+        android:background="@android:color/black" />
 
 </LinearLayout>

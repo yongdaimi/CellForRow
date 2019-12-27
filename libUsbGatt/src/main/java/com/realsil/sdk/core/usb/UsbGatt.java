@@ -4,6 +4,16 @@ import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.util.Log;
 
+import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
+import com.realsil.sdk.core.usb.connector.UsbError;
+import com.realsil.sdk.core.usb.connector.att.callback.ExchangeMtuRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest;
+import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
+import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
+import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,72 +28,109 @@ import java.util.UUID;
  * and call {@link UsbGattImpl#connectGatt} to get a instance of this class.
  * GATT capable devices can be discovered using the Bluetooth device discovery or BLE
  * scan process.
+ *
  * @author bingshanguxue
  */
 public class UsbGatt {
-    private static final String TAG = "UsbGatt";
-    private static final boolean DBG = true;
+    private static final String  TAG  = "UsbGatt";
+    private static final boolean DBG  = true;
     private static final boolean VDBG = true;
 
-    /** The profile is in disconnected state */
-    public static final int STATE_DISCONNECTED = 0;
-    /** The profile is in connecting state */
-    public static final int STATE_CONNECTING = 1;
-    /** The profile is in connected state */
-    public static final int STATE_CONNECTED = 2;
-    /** The profile is in disconnecting state */
+    /**
+     * The profile is in disconnected state
+     */
+    public static final int STATE_DISCONNECTED  = 0;
+    /**
+     * The profile is in connecting state
+     */
+    public static final int STATE_CONNECTING    = 1;
+    /**
+     * The profile is in connected state
+     */
+    public static final int STATE_CONNECTED     = 2;
+    /**
+     * The profile is in disconnecting state
+     */
     public static final int STATE_DISCONNECTING = 3;
 
-    private static final int CONN_STATE_IDLE = 0;
-    private static final int CONN_STATE_CONNECTING = 1;
-    private static final int CONN_STATE_CONNECTED = 2;
+    private static final int CONN_STATE_IDLE          = 0;
+    private static final int CONN_STATE_CONNECTING    = 1;
+    private static final int CONN_STATE_CONNECTED     = 2;
     private static final int CONN_STATE_DISCONNECTING = 3;
-    private static final int CONN_STATE_CLOSED = 4;
+    private static final int CONN_STATE_CLOSED        = 4;
 
-    /** A GATT operation completed successfully */
+    /**
+     * A GATT operation completed successfully
+     */
     public static final int GATT_SUCCESS = 0;
 
-    /** GATT read operation is not permitted */
+    /**
+     * GATT read operation is not permitted
+     */
     public static final int GATT_READ_NOT_PERMITTED = 0x2;
 
-    /** GATT write operation is not permitted */
+    /**
+     * GATT write operation is not permitted
+     */
     public static final int GATT_WRITE_NOT_PERMITTED = 0x3;
 
-    /** Insufficient authentication for a given operation */
+    /**
+     * Insufficient authentication for a given operation
+     */
     public static final int GATT_INSUFFICIENT_AUTHENTICATION = 0x5;
 
-    /** The given request is not supported */
+    /**
+     * The given request is not supported
+     */
     public static final int GATT_REQUEST_NOT_SUPPORTED = 0x6;
 
-    /** Insufficient encryption for a given operation */
+    /**
+     * Insufficient encryption for a given operation
+     */
     public static final int GATT_INSUFFICIENT_ENCRYPTION = 0xf;
 
-    /** A read or write operation was requested with an invalid offset */
+    /**
+     * A read or write operation was requested with an invalid offset
+     */
     public static final int GATT_INVALID_OFFSET = 0x7;
 
-    /** A write operation exceeds the maximum length of the attribute */
+    /**
+     * A write operation exceeds the maximum length of the attribute
+     */
     public static final int GATT_INVALID_ATTRIBUTE_LENGTH = 0xd;
 
-    /** A remote device connection is congested. */
+    /**
+     * A remote device connection is congested.
+     */
     public static final int GATT_CONNECTION_CONGESTED = 0x8f;
 
-    /** A GATT operation failed, errors other than the above */
+    /**
+     * A GATT operation failed, errors other than the above
+     */
     public static final int GATT_FAILURE = 0x101;
 
     private Context mContext = null;
+
     private UsbDevice mDevice;
+
     private List<UsbGattCharacteristic> mCharacteristics;
-    
-    
+
 
     private final Object mStateLock = new Object();
+
     private int mConnState = CONN_STATE_IDLE;
 
-    public UsbGatt(UsbDevice mDevice) {
+
+    /**
+     * Define a member variable to store the UsbGattCallback passed by the {@link UsbGatt#connect(UsbGattCallback)}
+     */
+    private UsbGattCallback mUsbGattCallback;
+
+    public UsbGatt(Context context, UsbDevice mDevice) {
+        this.mContext = context;
         this.mDevice = mDevice;
         mConnState = CONN_STATE_IDLE;
     }
-
 
     /**
      * Close this USB GATT client.
@@ -118,7 +165,7 @@ public class UsbGatt {
 
         for (UsbGattCharacteristic service : mCharacteristics) {
 //            if (service.getDevice().equals(mDevice)) {
-                result.add(service);
+            result.add(service);
 //            }
         }
 
@@ -165,37 +212,63 @@ public class UsbGatt {
      * @return true, if the read operation was initiated successfully
      */
     public boolean readCharacteristic(UsbGattCharacteristic characteristic) {
+        if (characteristic == null) {
+            return false;
+        }
         if (VDBG) {
             Log.d(TAG, "readCharacteristic() - uuid: " + characteristic.getUuid());
         }
-
-
-
-
-        // TODO: 2019-12-04
-//        if (mService == null || mClientIf == 0) return false;
-//
-//        BluetoothGattService service = characteristic.getService();
-//        if (service == null) return false;
-//
-//        BluetoothDevice device = service.getDevice();
-//        if (device == null) return false;
-//
-//        synchronized (mDeviceBusy) {
-//            if (mDeviceBusy) return false;
-//            mDeviceBusy = true;
-//        }
-//
-//        try {
-//            mService.readCharacteristic(mClientIf, device.getAddress(),
-//                    characteristic.getInstanceId(), AUTHENTICATION_NONE);
-//        } catch (RemoteException e) {
-//            Log.e(TAG, "", e);
-//            mDeviceBusy = false;
-//            return false;
-//        }
-
+        // Add
+        readAttributeRequest(characteristic);
         return true;
+    }
+
+
+    /**
+     * Call this method to read an attribute from the server.
+     *
+     * @param characteristic characteristic to be read from the server.
+     */
+    private void readAttributeRequest(UsbGattCharacteristic characteristic) {
+        short att_handle = (short) characteristic.getInstanceId();
+        final UsbGattCharacteristic read_characteristic = characteristic;
+
+        ReadAttributeRequest readRequest = new ReadAttributeRequest(att_handle);
+        readRequest.addReadAttributeRequestCallback(new ReadAttributeRequestCallback() {
+            @Override
+            public void onReadSuccess(byte[] attributeValue) {
+                super.onReadSuccess(attributeValue);
+                if (mUsbGattCallback != null) {
+                    read_characteristic.setValue(attributeValue);
+                    mUsbGattCallback.onCharacteristicRead(UsbGatt.this, read_characteristic, UsbGatt.GATT_SUCCESS);
+                }
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicRead(UsbGatt.this, read_characteristic, UsbGatt.GATT_FAILURE);
+                }
+            }
+
+            @Override
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicRead(UsbGatt.this, read_characteristic, getGattErrorCode(error_code));
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicRead(UsbGatt.this, read_characteristic, UsbGatt.GATT_FAILURE);
+                }
+            }
+        });
+        LocalUsbConnector.getInstance().readAttributesRequest(readRequest);
     }
 
     /**
@@ -211,7 +284,7 @@ public class UsbGatt {
      * @return true, if the write operation was initiated successfully
      */
     public boolean writeCharacteristic(UsbGattCharacteristic characteristic) {
-        if (characteristic.getValue() == null) {
+        if (characteristic == null || characteristic.getValue() == null) {
             return false;
         }
 
@@ -219,28 +292,114 @@ public class UsbGatt {
             Log.d(TAG, "writeCharacteristic() - uuid: " + characteristic.getUuid());
         }
 
-        // Add(xp.chen)
+        // Add(select write method by the write type)
         int writeType = characteristic.getWriteType();
         switch (writeType) {
             case UsbGattCharacteristic.WRITE_TYPE_DEFAULT:
-
+                writeAttributeRequest(characteristic);
                 break;
             case UsbGattCharacteristic.WRITE_TYPE_NO_RESPONSE:
-
+                writeAttributeCommand(characteristic);
                 break;
             case UsbGattCharacteristic.WRITE_TYPE_SIGNED:
-
                 break;
             default:
                 break;
         }
-
-
-        // TODO: 2019-12-04
-//        transparentTransport(...)
-
         return true;
     }
+
+
+    /**
+     * Call this method to write an attribute to the server.
+     * <p>Once the server response is received, the {@link WriteAttributeRequestCallback#onWriteSuccess()} callback
+     * is invoked, reporting the result of the operation.</p>
+     *
+     * @param characteristic characteristic to be written to the server.
+     */
+    private void writeAttributeRequest(UsbGattCharacteristic characteristic) {
+        short att_handle = (short) characteristic.getInstanceId();
+        byte[] att_value = characteristic.getValue();
+        final UsbGattCharacteristic write_characteristic = characteristic;
+
+        WriteAttributeRequest writeRequest = new WriteAttributeRequest(att_handle, att_value);
+        writeRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
+
+            @Override
+            public void onWriteSuccess() {
+                super.onWriteSuccess();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, UsbGatt.GATT_SUCCESS);
+                }
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, UsbGatt.GATT_FAILURE);
+                }
+            }
+
+            @Override
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, getGattErrorCode(error_code));
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, UsbGatt.GATT_FAILURE);
+                }
+            }
+        });
+        LocalUsbConnector.getInstance().writeAttributesRequest(writeRequest);
+    }
+
+    /**
+     * Call this method to write an attribute to the server.
+     * There have no write response when write a command to server.
+     *
+     * @param characteristic characteristic to be written to the server.
+     */
+    private void writeAttributeCommand(UsbGattCharacteristic characteristic) {
+        short att_handle = (short) characteristic.getInstanceId();
+        byte[] att_value = characteristic.getValue();
+
+        WriteAttributeCommand writeCommand = new WriteAttributeCommand(att_handle, att_value);
+        LocalUsbConnector.getInstance().writeAttributesCommand(writeCommand);
+    }
+
+
+    /**
+     * Convert att error code to gatt error code.
+     *
+     * @param att_error_code The error code of the att to be converted
+     * @return The converted error code of gatt.
+     */
+    private static int getGattErrorCode(byte att_error_code) {
+        int gatt_error_code = att_error_code & 0x0FF;
+        switch (gatt_error_code) {
+            case GATT_READ_NOT_PERMITTED:
+            case GATT_WRITE_NOT_PERMITTED:
+            case GATT_INSUFFICIENT_AUTHENTICATION:
+            case GATT_REQUEST_NOT_SUPPORTED:
+            case GATT_INSUFFICIENT_ENCRYPTION:
+            case GATT_INVALID_OFFSET:
+            case GATT_INVALID_ATTRIBUTE_LENGTH:
+            case GATT_CONNECTION_CONGESTED:
+                break;
+            default:
+                gatt_error_code = GATT_FAILURE;
+                break;
+        }
+        return gatt_error_code;
+    }
+
 
     /**
      * Initiate a connection to a Usb GATT capable device.
@@ -274,11 +433,23 @@ public class UsbGatt {
                 throw new IllegalStateException("Not idle");
             }
             mConnState = CONN_STATE_CONNECTING;
+            mUsbGattCallback = callback;
+        }
+        int initRet = LocalUsbConnector.getInstance().initConnector(mContext);
+        if (initRet != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "init usb connector failed, error code: " + initRet);
+            return false;
         }
 
-        // TODO: 2019-12-04
+        int setupRet = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
+        if (setupRet != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
+        }
+
+        LocalUsbConnector.getInstance().connect();
         return true;
     }
+
 
 
     /**
@@ -291,7 +462,18 @@ public class UsbGatt {
      * @return true, if the connection attempt was initiated successfully
      */
     public boolean connect() {
-        // TODO: 2019-12-04
+        int initRet = LocalUsbConnector.getInstance().initConnector(mContext);
+        if (initRet != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "init usb connector failed, error code: " + initRet);
+            return false;
+        }
+
+        int setupRet = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
+        if (setupRet != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
+        }
+
+        LocalUsbConnector.getInstance().connect();
         return true;
     }
 
@@ -305,7 +487,7 @@ public class UsbGatt {
         if (DBG) {
             Log.d(TAG, "cancelOpen() - device: " + mDevice.getDeviceName());
         }
-        // TODO: 2019-12-04
+        LocalUsbConnector.getInstance().disConnect();
     }
 
 
@@ -342,6 +524,52 @@ public class UsbGatt {
         return true;
     }
 
+    /**
+     * Call this method to request the server to respond with its maximum receive MTU size.
+     * <p>Once the server response is received, the {@link ExchangeMtuRequestCallback#onReceiveServerRxMtu(int)} callback
+     * is invoked, reporting the result of the operation.</p>
+     *
+     * @param mtu client's maximum receive MTU size.
+     */
+    private void readMtuRequest(int mtu) {
+        final int client_mtu_size = mtu;
+        ExchangeMtuRequest exchangeMtuRequest = new ExchangeMtuRequest(mtu);
+        exchangeMtuRequest.addExchangeMtuRequestCallback(new ExchangeMtuRequestCallback() {
+            @Override
+            public void onReceiveServerRxMtu(int serverMtuSize) {
+                super.onReceiveServerRxMtu(serverMtuSize);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onMtuChanged(UsbGatt.this, serverMtuSize, UsbGatt.GATT_SUCCESS);
+                }
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, UsbGatt.GATT_FAILURE);
+                }
+            }
+
+            @Override
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, getGattErrorCode(error_code));
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, UsbGatt.GATT_FAILURE);
+                }
+            }
+        });
+        LocalUsbConnector.getInstance().sendExchangeMtuRequest(exchangeMtuRequest);
+    }
+
 
     /**
      * Request an MTU size used for a given connection.
@@ -363,21 +591,14 @@ public class UsbGatt {
                     + " mtu: " + mtu);
         }
 
-        // TODO: 2019-12-10
+        if (mtu < 0) {
+            Log.d(TAG, "request mtu size can not be a negative value.");
+            return false;
+        }
 
+        readMtuRequest(mtu);
         return true;
     }
 
-    /**
-     * @param reportId
-     * @param length
-     * @param opcode
-     * @param parameters
-     * @return
-     */
-    public boolean transparentTransport(byte reportId, int length, byte opcode, byte[] parameters) {
-        // TODO: 2019-12-10
-        return true;
-    }
 
 }

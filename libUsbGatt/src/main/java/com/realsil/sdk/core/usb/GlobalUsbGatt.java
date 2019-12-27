@@ -196,7 +196,7 @@ public class GlobalUsbGatt {
 //        close(address);
 
         //connecting to the GATT server on the device
-        UsbGatt gatt = new UsbGatt(device);
+        UsbGatt gatt = new UsbGatt(mContext, device);
         gatt.connect(new GattCallback());
 
         if (gatt == null) {

@@ -77,6 +77,9 @@ public interface AttributeErrorCode {
      * Insufficient Resources to complete the request.
      */
     byte INSUFFICIENT_RESOURCES           = 0x11;
-
+    /**
+     * A remote device connection is congested.
+     */
+    byte CONNECTION_CONGESTED             = (byte) 0x8F;
 
 }

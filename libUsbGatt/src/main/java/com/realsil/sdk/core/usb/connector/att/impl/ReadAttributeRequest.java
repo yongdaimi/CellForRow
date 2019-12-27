@@ -20,7 +20,7 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
      *
      * @param attHandle The handler of the attribute to be read.
      */
-    public ReadAttributeRequest(short attHandle, byte[] attValue) {
+    public ReadAttributeRequest(short attHandle) {
         this.mAttHandle = attHandle;
     }
 
