@@ -1145,5 +1145,4 @@ public class LocalUsbConnector {
         mSelectUsbDevice = null;
     }
 
-
 }
