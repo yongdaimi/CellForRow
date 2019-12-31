@@ -1,6 +1,8 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
 
+import com.realsil.sdk.core.usb.connector.UsbConfig;
+
 /**
  * An abstract class template for creating Write Attribute PDUs
  *
@@ -37,12 +39,9 @@ abstract class BaseAttributeProtocol {
      */
     static final int LENGTH_WRITE_REQUEST_HEAD = LENGTH_REPORT_ID + LENGTH_SEND_MESSAGE;
 
-
     /**
      * Transmission port ID of the data to be transmitted
      * <p>Need to be determined based on the length of the sent data</p>
-     *
-     * @see BaseAttributeProtocol#selectComfortableReportID
      */
     byte mReportID;
 
@@ -79,69 +78,6 @@ abstract class BaseAttributeProtocol {
      */
     int mAttPduLength;
 
-    /**
-     * Report id field of send message, It stands for Transparent Transport 1(Support Max Packet Size: 63).
-     */
-    private static final byte REPORT_ID_16 = 16;
-
-    /**
-     * Report id field of send message, It stands for Transparent Transport 2(Support Max Packet Size: 127).
-     */
-    private static final byte REPORT_ID_17 = 17;
-
-    /**
-     * Report id field of send message, It stands for Transparent Transport 3(Support Max Packet Size: 191).
-     */
-    private static final byte REPORT_ID_18 = 18;
-
-    /**
-     * Report id field of send message, It stands for Transparent Transport 4(Support Max Packet Size: 255).
-     */
-    private static final byte REPORT_ID_19 = 19;
-
-    /**
-     * Unknown Report ID.
-     */
-    private static final byte REPORT_ID_UNKNOWN = -1;
-
-    /**
-     * The maximum packet size supported by the Transparent Transport 1
-     */
-    private static final int MAX_PACKET_SIZE_63 = 63;
-
-    /**
-     * The maximum packet size supported by the Transparent Transport 2
-     */
-    private static final int MAX_PACKET_SIZE_127 = 127;
-
-    /**
-     * The maximum packet size supported by the Transparent Transport 3
-     */
-    private static final int MAX_PACKET_SIZE_191 = 191;
-
-    /**
-     * The maximum packet size supported by the Transparent Transport 4
-     */
-    private static final int MAX_PACKET_SIZE_255 = 255;
-
-    /**
-     * Select the appropriate Report ID based on the size of the packets sent.
-     *
-     * @see BaseAttributeProtocol#mReportID
-     */
-    static byte selectComfortableReportID(int packageSize) {
-        if (packageSize > MAX_PACKET_SIZE_255) {
-            return REPORT_ID_UNKNOWN;
-        } else if (packageSize > MAX_PACKET_SIZE_191) {
-            return REPORT_ID_19;
-        } else if (packageSize > MAX_PACKET_SIZE_127) {
-            return REPORT_ID_18;
-        } else if (packageSize > MAX_PACKET_SIZE_63) {
-            return REPORT_ID_17;
-        } else {
-            return REPORT_ID_16;
-        }
-    }
 
     /**
      * Get the data to be sent to the server.
@@ -150,6 +86,13 @@ abstract class BaseAttributeProtocol {
      */
     public byte[] getSendData() {
         return mSendData;
+    }
+
+    /**
+     * Select the appropriate Report ID based on the size of the packets sent.
+     */
+    byte selectComfortableReportID(int packageSize) {
+        return UsbConfig.selectComfortableReportID(packageSize);
     }
 
 }

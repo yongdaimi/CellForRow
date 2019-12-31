@@ -1,6 +1,6 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
+import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 
 import java.nio.ByteBuffer;
@@ -33,15 +33,12 @@ public class ExchangeMtuRequest extends BaseExchangeMtuRequest {
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcode.EXCHANGE_MTU_REQUEST;
+        this.request_opcode = AttributeOpcodeDefine.EXCHANGE_MTU_REQUEST;
     }
 
     @Override
     public void createRequest() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
-        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
-        this.mSendData = new byte[mSendDataLength];
-        this.mReportID = selectComfortableReportID(mSendDataLength);
+        super.createRequest();
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(mSendData);
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -62,7 +59,7 @@ public class ExchangeMtuRequest extends BaseExchangeMtuRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcode.EXCHANGE_MTU_RESPONSE) {
+        if (response_opcode == AttributeOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
             short server_mtu_size = 0;
             if (response.length > 1) {
                 ByteBuffer buffer = ByteBuffer.wrap(response);

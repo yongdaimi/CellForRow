@@ -1,6 +1,7 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
+import com.realsil.sdk.core.usb.connector.att.AttributeErrorCodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 import com.realsil.sdk.core.usb.connector.att.callback.BaseRequestCallback;
 
@@ -15,15 +16,15 @@ import java.nio.ByteOrder;
 public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
 
     /**
-     * The request opcode sent by client. It will be included in the request pdu to be sent, defined in {@link AttributeOpcode}.
+     * The request opcode sent by client. It will be included in the request pdu to be sent, defined in {@link AttributeOpcodeDefine}.
      *
-     * @see AttributeOpcode#READ_REQUEST
-     * @see AttributeOpcode#WRITE_REQUEST
+     * @see AttributeOpcodeDefine#READ_REQUEST
+     * @see AttributeOpcodeDefine#WRITE_REQUEST
      */
     byte request_opcode;
 
     /**
-     * The response opcode return by server. If server processing fails, it will be equal to {@link AttributeOpcode#ERROR_RESPONSE}.
+     * The response opcode return by server. If server processing fails, it will be equal to {@link AttributeOpcodeDefine#ERROR_RESPONSE}.
      */
     byte response_opcode;
 
@@ -38,9 +39,9 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
     short error_att_handle;
 
     /**
-     * The reason why the request has generated an error response, it is defined in class {@link com.realsil.sdk.core.usb.connector.att.AttributeErrorCode}.
+     * The reason why the request has generated an error response, it is defined in class {@link AttributeErrorCodeDefine}.
      *
-     * @see com.realsil.sdk.core.usb.connector.att.AttributeErrorCode
+     * @see AttributeErrorCodeDefine
      */
     byte error_code;
 
@@ -81,7 +82,7 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      * Call this method to get the request opcode sent by client.
      *
      * @return request code.
-     * @see AttributeOpcode
+     * @see AttributeOpcodeDefine
      */
     public byte getRequestOpcode() {
         return request_opcode;
@@ -90,7 +91,12 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
     /**
      * Use this method to create a Write Attributes Request.
      */
-    public abstract void createRequest();
+    public void createRequest() {
+        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
+        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
+        this.mSendData = new byte[mSendDataLength];
+        this.mReportID = selectComfortableReportID(mSendDataLength);
+    }
 
     /**
      * Parse the response returned by the server in this method.
@@ -103,7 +109,7 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      */
     public void parseResponse(byte[] response) {
         response_opcode = response[0];
-        if (response_opcode == AttributeOpcode.ERROR_RESPONSE) {
+        if (response_opcode == AttributeOpcodeDefine.ERROR_RESPONSE) {
             ByteBuffer buffer = ByteBuffer.wrap(response);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             error_request_opcode = buffer.get(1);

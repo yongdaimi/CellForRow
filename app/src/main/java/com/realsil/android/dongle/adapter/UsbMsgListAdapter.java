@@ -1,67 +1,68 @@
 package com.realsil.android.dongle.adapter;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.realsil.android.dongle.R;
+import com.realsil.android.dongle.entity.UsbMsg;
 
 import java.util.List;
 
-public class UsbMsgListAdapter extends BaseAdapter {
+public class UsbMsgListAdapter extends RecyclerView.Adapter<UsbMsgListAdapter.VH> {
 
 
-    private List<String> mMsgList;
+    private List<UsbMsg> mMsgList;
+
     private Context mContext;
 
-    public UsbMsgListAdapter(Context context, List<String> msgList) {
+    public UsbMsgListAdapter(Context context, List<UsbMsg> msgList) {
         this.mMsgList = msgList;
         this.mContext = context;
     }
 
-    public void addMsgItem(String msgStr) {
-        mMsgList.add(0, msgStr);
-        notifyDataSetChanged();
+    @NonNull
+    @Override
+    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item_usb_msg, parent, false));
     }
 
     @Override
-    public int getCount() {
+    public void onBindViewHolder(@NonNull VH holder, int position) {
+        UsbMsg usbMsg = mMsgList.get(position);
+        holder.tv_msg_text.setText(usbMsg.getMsgString());
+
+        if (usbMsg.getMsgType() == UsbMsg.MSG_TYPE_ERROR) {
+            holder.tv_msg_text.setTextColor(Color.RED);
+        } else {
+            holder.tv_msg_text.setTextColor(Color.GREEN);
+        }
+    }
+
+    @Override
+    public int getItemCount() {
         return mMsgList.size();
     }
 
-    @Override
-    public Object getItem(int position) {
-        return mMsgList.get(position);
+    public void addMsgItem(UsbMsg msgStr) {
+        mMsgList.add(0, msgStr);
     }
 
-    @Override
-    public long getItemId(int position) {
-        return position;
-    }
+    static class VH extends RecyclerView.ViewHolder {
 
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder = null;
-        if (convertView == null) {
-            convertView = LayoutInflater.from(mContext).inflate(R.layout.list_item_usb_msg, parent, false);
-            holder = new ViewHolder();
-            holder.tv_msg_text = convertView.findViewById(R.id.tv_msg_text);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
+        private TextView tv_msg_text;
+
+        VH(@NonNull View itemView) {
+            super(itemView);
+            tv_msg_text = itemView.findViewById(R.id.tv_msg_text);
         }
 
-        holder.tv_msg_text.setText(mMsgList.get(position));
-        return convertView;
     }
-
-
-    static class ViewHolder {
-        TextView tv_msg_text;
-    }
-
 
 }

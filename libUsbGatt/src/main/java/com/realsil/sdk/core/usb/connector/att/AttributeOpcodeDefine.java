@@ -6,7 +6,7 @@ package com.realsil.sdk.core.usb.connector.att;
  *
  * @author xp.chen
  */
-public interface AttributeOpcode {
+public interface AttributeOpcodeDefine {
 
     /**
      * 0x01 = ERROR_RESPONSE
