@@ -5,40 +5,21 @@
     android:orientation="vertical">
 
     <Button
-        android:id="@+id/btn_setup_usbadapter"
+        android:id="@+id/btn_setup_usb_connector"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:onClick="setupUsbAdapter"
-        android:text="Setup Usb Adapter"
+        android:text="Setup Usb Connector"
         android:textAllCaps="false" />
 
     <Button
-        android:id="@+id/btn_start_reading"
+        android:id="@+id/btn_send_att_pdu"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:onClick="startReadingFromUsb"
-        android:text="StartReadingFromUsb"
+        android:text="Send ATT PDU"
         android:textAllCaps="false" />
 
-    <Button
-        android:id="@+id/btn_reset_atomic"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="resetAtomic"
-        android:text="Reset Atomic"
-        android:textAllCaps="false" />
-
-
-    <Button
-        android:id="@+id/btn_send_command_pdu"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="sendCommandPdu"
-        android:text="Send Command PDU"
-        android:textAllCaps="false" />
-
-
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/lv_msg_list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

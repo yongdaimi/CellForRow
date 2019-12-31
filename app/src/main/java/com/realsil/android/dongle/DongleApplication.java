@@ -30,8 +30,7 @@ public class DongleApplication extends Application {
         initCrashCollectionUtil();
     }
 
-    /*private void initIconCache()
-    {
+    /*private void initIconCache() {
         long totalSize = Runtime.getRuntime().maxMemory() / 1024;
         int cacheSize = (int) (totalSize / 16);
         IconCache.getInstance().initialize(cacheSize);
@@ -49,8 +48,7 @@ public class DongleApplication extends Application {
      * For example,
      * sometimes RC action like "adb am start" command and will cause exceptions.
      */
-    /*private void startDaemonService()
-    {
+    /*private void startDaemonService() {
         daemonTracker = new DaemonTracker(this);
         daemonTracker.startTrace();
         if (Build.VERSION.SDK_INT >= 26) {

@@ -218,7 +218,7 @@ public class UsbGatt {
         if (VDBG) {
             Log.d(TAG, "readCharacteristic() - uuid: " + characteristic.getUuid());
         }
-        // Add
+        // Add(read detail info of attribute by characteristic)
         readAttributeRequest(characteristic);
         return true;
     }
@@ -590,12 +590,10 @@ public class UsbGatt {
             Log.d(TAG, "configureMTU() - device: " + mDevice.getDeviceName()
                     + " mtu: " + mtu);
         }
-
         if (mtu < 0) {
             Log.d(TAG, "request mtu size can not be a negative value.");
             return false;
         }
-
         readMtuRequest(mtu);
         return true;
     }

@@ -1,6 +1,6 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcode;
+import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 
 import java.nio.ByteBuffer;
@@ -26,15 +26,12 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcode.READ_REQUEST;
+        this.request_opcode = AttributeOpcodeDefine.READ_REQUEST;
     }
 
     @Override
     public void createRequest() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
-        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
-        this.mSendData = new byte[mSendDataLength];
-        this.mReportID = selectComfortableReportID(mSendDataLength);
+        super.createRequest();
 
         ByteBuffer byteBuffer = ByteBuffer.wrap(mSendData);
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -47,7 +44,7 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
 
         /// Put Att PDU
         // Att opcode
-        byteBuffer.put(2, AttributeOpcode.READ_REQUEST);
+        byteBuffer.put(2, request_opcode);
         // Att handle
         byteBuffer.putShort(3, mAttHandle);
     }
@@ -55,7 +52,7 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcode.READ_RESPONSE) {
+        if (response_opcode == AttributeOpcodeDefine.READ_RESPONSE) {
             byte[] att_value;
             if (response.length > 1) {
                 att_value = new byte[response.length - 1];

@@ -23,9 +23,7 @@ public class SplashActivity extends BaseActivity {
             Manifest.permission.ACCESS_COARSE_LOCATION
     };
 
-
     private static final int REQUEST_CODE_APPLY_PERMISSION = 10001;
-
 
     @Override
     protected void setContainer() {

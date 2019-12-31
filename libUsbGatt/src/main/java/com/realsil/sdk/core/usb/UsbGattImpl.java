@@ -1,5 +1,6 @@
 package com.realsil.sdk.core.usb;
 
+import android.content.Context;
 import android.hardware.usb.UsbDevice;
 
 /**
@@ -18,12 +19,12 @@ public class UsbGattImpl {
      * operations.
      * @hide
      */
-    public static UsbGatt connectGatt(UsbDevice device, UsbGattCallback callback) {
+    public static UsbGatt connectGatt(Context context, UsbDevice device, UsbGattCallback callback) {
         if (callback == null) {
             throw new NullPointerException("callback is null");
         }
 
-        UsbGatt gatt = new UsbGatt(device);
+        UsbGatt gatt = new UsbGatt(context, device);
         gatt.connect(callback);
         return gatt;
     }

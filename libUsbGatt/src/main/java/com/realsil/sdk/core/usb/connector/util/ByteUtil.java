@@ -8,7 +8,7 @@ import java.util.Locale;
  */
 public final class ByteUtil {
 
-    public static String printHexString(byte[] bArr) {
+    public static String convertHexString(byte[] bArr) {
         if (bArr == null || bArr.length == 0) return null;
         StringBuilder stringBuffer = new StringBuilder();
         for (byte b : bArr) {
