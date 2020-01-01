@@ -27,7 +27,7 @@ public class WriteAttributeCommand extends BaseWriteAttributeCommand {
 
     @Override
     public void createCommand() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE + mAttValue.length;
+        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_ATT_HANDLE_FIELD + mAttValue.length;
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
         this.mSendData = new byte[mSendDataLength];
         this.mReportID = selectComfortableReportID(mSendDataLength);

@@ -67,6 +67,7 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
 
     /**
      * Get the callback currently used to listen for {@link BaseRequestCallback}.
+     *
      * @return A Callback currently for listening to {@link BaseRequestCallback}.
      */
     public BaseRequestCallback getRequestCallback() {
@@ -77,6 +78,11 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      * Call this method to set internal {@link BaseAttributeRequest#request_opcode} member variables.
      */
     public abstract void setRequestOpcode();
+
+    /**
+     * Call this method to set internal {@link BaseAttributeRequest#mAttPduLength} member variables.
+     */
+    public abstract void setAttPduLength();
 
     /**
      * Call this method to get the request opcode sent by client.
@@ -92,7 +98,6 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      * Use this method to create a Write Attributes Request.
      */
     public void createRequest() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE;
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
         this.mSendData = new byte[mSendDataLength];
         this.mReportID = selectComfortableReportID(mSendDataLength);
@@ -102,8 +107,6 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      * Parse the response returned by the server in this method.
      *
      * @param response response data from server.
-     * @return Parse result, May be {@link com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_SUCCESS}
-     * or {@link com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_FAILED}.
      * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_SUCCESS
      * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_FAILED
      */

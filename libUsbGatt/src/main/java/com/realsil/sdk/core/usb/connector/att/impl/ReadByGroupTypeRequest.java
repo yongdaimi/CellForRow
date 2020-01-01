@@ -2,6 +2,7 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 
 import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.callback.ReadByGroupTypeRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -13,7 +14,7 @@ import java.nio.ByteOrder;
  *
  * @author xp.chen
  */
-public class ReadByGroupTypeRequest extends BaseReadByGroupTypeRequest {
+public class ReadByGroupTypeRequest extends BaseAttributeRequest {
 
     /**
      * First requested handle number
@@ -82,9 +83,33 @@ public class ReadByGroupTypeRequest extends BaseReadByGroupTypeRequest {
     }
 
 
+    /**
+     * Add a callback interface to listen the status when the client send a {@link ReadByGroupTypeRequest} to server.
+     *
+     * @param readByGroupTypeRequestCallback readByGroupTypeRequestCallback instance
+     */
+    public void addReadByGroupTypeRequestCallback(ReadByGroupTypeRequestCallback readByGroupTypeRequestCallback) {
+        this.mBaseRequestCallback = readByGroupTypeRequestCallback;
+    }
+
+    /**
+     * Get the callback currently used to listen fro {@link ReadByGroupTypeRequest}
+     *
+     * @return A Callback currently for listening to {@link ReadByGroupTypeRequest}.
+     */
+    public ReadByGroupTypeRequestCallback getReadByGroupTypeRequestCallback() {
+        return (ReadByGroupTypeRequestCallback) mBaseRequestCallback;
+    }
+
+
     @Override
     public void setRequestOpcode() {
         this.request_opcode = AttributeOpcodeDefine.READ_BY_GROUP_TYPE_REQUEST;
+    }
+
+    @Override
+    public void setAttPduLength() {
+        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_STARTING_HANDLE_FIELD + LENGTH_ENDING_HANDLE_FIELD + LENGTH_ATTRIBUTE_GROUP_TYPE_FIELD;
     }
 
     @Override

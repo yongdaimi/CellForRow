@@ -12,32 +12,55 @@ abstract class BaseAttributeProtocol {
 
 
     /**
-     * The length of the report id in the sent message (1 Octets).
+     * The length of the report id field in the sent message (1 Octets).
      */
-    private static final int LENGTH_REPORT_ID = 1;
+    private static final int LENGTH_REPORT_ID_FIELD = 1;
 
     /**
-     * The length of the sent message (1 Octets).
+     * The length of the message len field (1 Octets).
      * Note: Does not include the field itself and Report ID.
      */
-    private static final int LENGTH_SEND_MESSAGE = 1;
+    private static final int LENGTH_MESSAGE_LEN_FIELD = 1;
 
     /**
      * The length of the ATT Opcode in ATT PDU (1 Octets).
      */
-    static final int LENGTH_ATT_OPCODE = 1;
-
+    static final int LENGTH_ATT_OPCODE_FIELD = 1;
 
     /**
      * The length of the ATT Handle in ATT PDU (2 Octets).
      */
-    static final int LENGTH_ATT_HANDLE = 2;
-
+    static final int LENGTH_ATT_HANDLE_FIELD = 2;
 
     /**
-     * Total length of write request header(LENGTH_REPORT_ID + LENGTH_SEND_MESSAGE + LENGTH_ATT_OPCODE + LENGTH_ATT_HANDLE).
+     * The length of the client receive MTU size (2 Octets).
      */
-    static final int LENGTH_WRITE_REQUEST_HEAD = LENGTH_REPORT_ID + LENGTH_SEND_MESSAGE;
+    static final int LENGTH_CLIENT_RX_MTU_FIELD = 2;
+
+    /**
+     * The length of first requested handle number
+     */
+    static final int LENGTH_STARTING_HANDLE_FIELD = 2;
+
+    /**
+     * The length of last requested handle number
+     */
+    static final int LENGTH_ENDING_HANDLE_FIELD = 2;
+
+    /**
+     * The length of Attribute type.
+     */
+    static final int LENGTH_ATTRIBUTE_TYPE_FIELD = 2;
+
+    /**
+     * The length of Attribute group type.
+     */
+    static final int LENGTH_ATTRIBUTE_GROUP_TYPE_FIELD = 2;
+
+    /**
+     * Total length of write request header(LENGTH_REPORT_ID_FIELD + LENGTH_MESSAGE_LEN_FIELD + LENGTH_ATT_OPCODE_FIELD + Content [ATT_HANDLE or others, etc]).
+     */
+    static final int LENGTH_WRITE_REQUEST_HEAD = LENGTH_REPORT_ID_FIELD + LENGTH_MESSAGE_LEN_FIELD;
 
     /**
      * Transmission port ID of the data to be transmitted
@@ -55,7 +78,6 @@ abstract class BaseAttributeProtocol {
      * The value to be written to the attribute
      */
     byte[] mAttValue;
-
 
     /**
      * The final message data send to the server.

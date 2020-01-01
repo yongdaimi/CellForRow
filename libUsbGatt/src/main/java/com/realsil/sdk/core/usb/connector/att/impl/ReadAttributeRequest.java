@@ -2,6 +2,7 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 
 import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -12,7 +13,7 @@ import java.nio.ByteOrder;
  *
  * @author xp.chen
  */
-public class ReadAttributeRequest extends BaseReadAttributeRequest {
+public class ReadAttributeRequest extends BaseAttributeRequest {
 
 
     /**
@@ -24,9 +25,32 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
         this.mAttHandle = attHandle;
     }
 
+    /**
+     * Add a callback interface to listen the status when the client sends a {@link ReadAttributeRequest} to the server.
+     *
+     * @param readAttributeRequestCallback A callback is used to listen the data sending status when the client sends a read attribute request to the server.
+     */
+    public void addReadAttributeRequestCallback(ReadAttributeRequestCallback readAttributeRequestCallback) {
+        this.mBaseRequestCallback = readAttributeRequestCallback;
+    }
+
+    /**
+     * Get the callback currently used to listen for {@link ReadAttributeRequest}.
+     *
+     * @return A Callback currently for listening to {@link ReadAttributeRequest}.
+     */
+    public ReadAttributeRequestCallback getReadAttributeRequestCallback() {
+        return (ReadAttributeRequestCallback) mBaseRequestCallback;
+    }
+
     @Override
     public void setRequestOpcode() {
         this.request_opcode = AttributeOpcodeDefine.READ_REQUEST;
+    }
+
+    @Override
+    public void setAttPduLength() {
+        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_ATT_HANDLE_FIELD;
     }
 
     @Override
@@ -66,8 +90,9 @@ public class ReadAttributeRequest extends BaseReadAttributeRequest {
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         } else {
-            if (getReadAttributeRequestCallback() != null)
+            if (getReadAttributeRequestCallback() != null) {
                 getReadAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
+            }
         }
     }
 

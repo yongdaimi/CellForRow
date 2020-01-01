@@ -2,6 +2,7 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 
 import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -12,7 +13,7 @@ import java.nio.ByteOrder;
  *
  * @author xp.chen
  */
-public class WriteAttributeRequest extends BaseWriteAttributeRequest {
+public class WriteAttributeRequest extends BaseAttributeRequest {
 
 
     /**
@@ -26,9 +27,32 @@ public class WriteAttributeRequest extends BaseWriteAttributeRequest {
         this.mAttValue = attValue;
     }
 
+    /**
+     * Add a callback interface to listen the status of data sent by the client to the server
+     *
+     * @param writeAttributeRequestCallback A callback is used to listen the data sending status when the client sends data to the server.
+     */
+    public void addWriteAttributeRequestCallback(WriteAttributeRequestCallback writeAttributeRequestCallback) {
+        this.mBaseRequestCallback = writeAttributeRequestCallback;
+    }
+
+    /**
+     * Get the callback currently used to listen for {@link WriteAttributeRequest}.
+     *
+     * @return A Callback currently for listening to {@link WriteAttributeRequest}.
+     */
+    public WriteAttributeRequestCallback getWriteAttributeRequestCallback() {
+        return (WriteAttributeRequestCallback)mBaseRequestCallback;
+    }
+
     @Override
     public void setRequestOpcode() {
         this.request_opcode = AttributeOpcodeDefine.WRITE_REQUEST;
+    }
+
+    @Override
+    public void setAttPduLength() {
+        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_ATT_HANDLE_FIELD + mAttValue.length;
     }
 
     @Override

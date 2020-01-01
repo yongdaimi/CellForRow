@@ -2,6 +2,7 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 
 import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.callback.ExchangeMtuRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -12,7 +13,7 @@ import java.nio.ByteOrder;
  *
  * @author xp.chen
  */
-public class ExchangeMtuRequest extends BaseExchangeMtuRequest {
+public class ExchangeMtuRequest extends BaseAttributeRequest {
 
 
     private short mMtuSize;
@@ -31,9 +32,33 @@ public class ExchangeMtuRequest extends BaseExchangeMtuRequest {
         }
     }
 
+    /**
+     * Add a callback interface to listen the status when the client send a {@link ExchangeMtuRequest} to server.
+     *
+     * @param exchangeMtuRequestCallback A callback is used to listen the status when the client sends a exchange MTU request to server.
+     */
+    public void addExchangeMtuRequestCallback(ExchangeMtuRequestCallback exchangeMtuRequestCallback) {
+        this.mBaseRequestCallback = exchangeMtuRequestCallback;
+    }
+
+    /**
+     * Get the callback currently used to listen for {@link ExchangeMtuRequestCallback}.
+     *
+     * @return A Callback currently for listening to {@link ExchangeMtuRequestCallback}.
+     */
+    public ExchangeMtuRequestCallback getExchangeMtuRequestCallback() {
+        return (ExchangeMtuRequestCallback) mBaseRequestCallback;
+    }
+
+
     @Override
     public void setRequestOpcode() {
         this.request_opcode = AttributeOpcodeDefine.EXCHANGE_MTU_REQUEST;
+    }
+
+    @Override
+    public void setAttPduLength() {
+        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_CLIENT_RX_MTU_FIELD;
     }
 
     @Override
@@ -75,5 +100,6 @@ public class ExchangeMtuRequest extends BaseExchangeMtuRequest {
                 getExchangeMtuRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
         }
     }
+
 
 }

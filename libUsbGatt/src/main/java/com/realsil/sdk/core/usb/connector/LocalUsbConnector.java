@@ -511,8 +511,8 @@ public class LocalUsbConnector {
 
             if (Objects.equals(intent.getAction(), UsbAction.ACTION_REQUEST_USB_PERMISSION)) {
                 // Handling user authorization results
-                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
+                UsbDevice device  = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                boolean   granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
                 if (device != null && granted) {
                     mSelectUsbDevice = device;
                     printAuthorizedDeviceInfo();
@@ -685,7 +685,7 @@ public class LocalUsbConnector {
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "start listening for bulk in endpoint data..."));
             while (!isInterrupted()) {
                 byte[] recvBuf = new byte[mUsbEndpointBulkIn.getMaxPacketSize()];
-                int recvlen = mUsbDeviceConnection.bulkTransfer(mUsbEndpointBulkIn, recvBuf, recvBuf.length, 0);
+                int    recvlen = mUsbDeviceConnection.bulkTransfer(mUsbEndpointBulkIn, recvBuf, recvBuf.length, 0);
                 if (recvlen > 0) {
                     // Parse receive data
                     byte[] recvData = new byte[recvlen];
@@ -710,9 +710,9 @@ public class LocalUsbConnector {
             super.run();
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "start listening for interrupt in endpoint data..."));
             while (!isInterrupted()) {
-                int recvMaxSize = mUsbEndpointInterruptIn.getMaxPacketSize();
-                ByteBuffer buffer = ByteBuffer.allocate(recvMaxSize);
-                UsbRequest usbRequest = new UsbRequest();
+                int        recvMaxSize = mUsbEndpointInterruptIn.getMaxPacketSize();
+                ByteBuffer buffer      = ByteBuffer.allocate(recvMaxSize);
+                UsbRequest usbRequest  = new UsbRequest();
                 usbRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     usbRequest.queue(buffer);
@@ -989,15 +989,16 @@ public class LocalUsbConnector {
                     // construct request message.
                     BaseAttributeRequest attributeRequest = mSendRequestCacheQueue.take();
                     attributeRequest.setRequestOpcode();
+                    attributeRequest.setAttPduLength();
                     attributeRequest.createRequest();
-                    byte[] sendData = attributeRequest.getSendData();
-                    String sendHexStr = ByteUtil.convertHexString(sendData);
+                    byte[] sendData    = attributeRequest.getSendData();
+                    String sendHexStr  = ByteUtil.convertHexString(sendData);
                     String logInfoType = getLogInfoTypeByOpcode(attributeRequest.getRequestOpcode());
                     Log.i(TAG, UsbLogInfo.msg(logInfoType, "send request hex string: " + sendHexStr));
 
                     // send request message by bulk out.
                     BaseRequestCallback requestCallback = attributeRequest.getRequestCallback();
-                    int writeRet = writeData2BulkOutEndpoint(sendData);
+                    int                 writeRet        = writeData2BulkOutEndpoint(sendData);
                     if (writeRet >= 0) {
                         Log.i(TAG, UsbLogInfo.msg(logInfoType, "write bulk success, result is " + writeRet));
                         // Record the write request currently sent.
@@ -1062,7 +1063,7 @@ public class LocalUsbConnector {
         @Override
         public void run() {
             mWriteAttributesCommand.createCommand();
-            byte[] sendData = mWriteAttributesCommand.getSendData();
+            byte[] sendData   = mWriteAttributesCommand.getSendData();
             String sendHexStr = ByteUtil.convertHexString(sendData);
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_WRITE_COMMAND, "send write command hex string: " + sendHexStr));
             int writeRet = writeData2BulkOutEndpoint(sendData);
