@@ -268,7 +268,7 @@ public class UsbGatt {
                 }
             }
         });
-        LocalUsbConnector.getInstance().readAttributesRequest(readRequest);
+        LocalUsbConnector.getInstance().sendRequest(readRequest);
     }
 
     /**
@@ -357,7 +357,7 @@ public class UsbGatt {
                 }
             }
         });
-        LocalUsbConnector.getInstance().writeAttributesRequest(writeRequest);
+        LocalUsbConnector.getInstance().sendRequest(writeRequest);
     }
 
     /**
@@ -567,7 +567,7 @@ public class UsbGatt {
                 }
             }
         });
-        LocalUsbConnector.getInstance().sendExchangeMtuRequest(exchangeMtuRequest);
+        LocalUsbConnector.getInstance().sendRequest(exchangeMtuRequest);
     }
 
 

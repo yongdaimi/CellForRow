@@ -1,6 +1,7 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
 
@@ -17,12 +18,17 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
 
 
     /**
+     * The handler of the attribute to be written or read.
+     */
+    private short mAttHandle;
+
+    /**
      * Use this constructor to create a Read Attributes Request.
      *
      * @param attHandle The handler of the attribute to be read.
      */
-    public ReadAttributeRequest(short attHandle) {
-        this.mAttHandle = attHandle;
+    public ReadAttributeRequest(int attHandle) {
+        this.mAttHandle = (short) attHandle;
     }
 
     /**
@@ -45,12 +51,12 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcodeDefine.READ_REQUEST;
+        this.request_opcode = AttPduOpcodeDefine.READ_REQUEST;
     }
 
     @Override
-    public void setAttPduLength() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_ATT_HANDLE_FIELD;
+    public void setMessageLength() {
+        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE;
     }
 
     @Override
@@ -64,7 +70,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mAttPduLength);
+        byteBuffer.put(1, (byte) mMessageLength);
 
         /// Put Att PDU
         // Att opcode
@@ -76,7 +82,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcodeDefine.READ_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
             byte[] att_value;
             if (response.length > 1) {
                 att_value = new byte[response.length - 1];

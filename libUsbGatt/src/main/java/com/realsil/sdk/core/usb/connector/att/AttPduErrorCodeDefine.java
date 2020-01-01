@@ -6,7 +6,7 @@ package com.realsil.sdk.core.usb.connector.att;
  *
  * @author xp.chen
  */
-public interface AttributeErrorCodeDefine {
+public interface AttPduErrorCodeDefine {
 
     /**
      * The attribute handle given was not valid on this server.

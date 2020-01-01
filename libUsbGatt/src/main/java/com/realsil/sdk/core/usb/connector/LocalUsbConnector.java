@@ -15,13 +15,11 @@ import android.hardware.usb.UsbRequest;
 import android.os.Build;
 import android.util.Log;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
-import com.realsil.sdk.core.usb.connector.att.callback.BaseRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.callback.OnReceiveServerIndicationCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.OnReceiveServerNotificationCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
-import com.realsil.sdk.core.usb.connector.att.impl.BaseAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
@@ -96,9 +94,9 @@ public class LocalUsbConnector {
 
     /**
      * Record the request currently being sent. Only one request message can be sent
-     * at a time. You must wait for the corresponding write response or read response before sending the next request.
+     * at a time. You must wait for the corresponding response from server before sending the next request.
      */
-    private BaseAttributeRequest mSendingAttributesRequest;
+    private BaseRequest mSendingRequest;
 
     /* Send write attribute command thread pool args */
     /**
@@ -511,8 +509,8 @@ public class LocalUsbConnector {
 
             if (Objects.equals(intent.getAction(), UsbAction.ACTION_REQUEST_USB_PERMISSION)) {
                 // Handling user authorization results
-                UsbDevice device  = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                boolean   granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
+                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
                 if (device != null && granted) {
                     mSelectUsbDevice = device;
                     printAuthorizedDeviceInfo();
@@ -685,7 +683,7 @@ public class LocalUsbConnector {
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "start listening for bulk in endpoint data..."));
             while (!isInterrupted()) {
                 byte[] recvBuf = new byte[mUsbEndpointBulkIn.getMaxPacketSize()];
-                int    recvlen = mUsbDeviceConnection.bulkTransfer(mUsbEndpointBulkIn, recvBuf, recvBuf.length, 0);
+                int recvlen = mUsbDeviceConnection.bulkTransfer(mUsbEndpointBulkIn, recvBuf, recvBuf.length, 0);
                 if (recvlen > 0) {
                     // Parse receive data
                     byte[] recvData = new byte[recvlen];
@@ -710,9 +708,9 @@ public class LocalUsbConnector {
             super.run();
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "start listening for interrupt in endpoint data..."));
             while (!isInterrupted()) {
-                int        recvMaxSize = mUsbEndpointInterruptIn.getMaxPacketSize();
-                ByteBuffer buffer      = ByteBuffer.allocate(recvMaxSize);
-                UsbRequest usbRequest  = new UsbRequest();
+                int recvMaxSize = mUsbEndpointInterruptIn.getMaxPacketSize();
+                ByteBuffer buffer = ByteBuffer.allocate(recvMaxSize);
+                UsbRequest usbRequest = new UsbRequest();
                 usbRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     usbRequest.queue(buffer);
@@ -739,15 +737,15 @@ public class LocalUsbConnector {
     private void parseReceiveData(byte[] receiveData) {
         byte receive_att_opcode = receiveData[0];
         switch (receive_att_opcode) {
-            case AttributeOpcodeDefine.WRITE_RESPONSE:
-            case AttributeOpcodeDefine.READ_RESPONSE:
-            case AttributeOpcodeDefine.EXCHANGE_MTU_RESPONSE:
+            case AttPduOpcodeDefine.WRITE_RESPONSE:
+            case AttPduOpcodeDefine.READ_RESPONSE:
+            case AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE:
                 parseResponseDataFromServer(receiveData);
                 break;
-            case AttributeOpcodeDefine.HANDLE_VALUE_INDICATION:
+            case AttPduOpcodeDefine.HANDLE_VALUE_INDICATION:
                 parseIndicationMessageFromServer(receiveData);
                 break;
-            case AttributeOpcodeDefine.HANDLE_VALUE_NOTIFICATION:
+            case AttPduOpcodeDefine.HANDLE_VALUE_NOTIFICATION:
                 parseNotificationMessageFromServer(receiveData);
                 break;
             default:
@@ -764,11 +762,11 @@ public class LocalUsbConnector {
     private void parseResponseDataFromServer(byte[] responseData) {
         mSendNextRequestLock.lock();
         try {
-            if (mSendingAttributesRequest != null) {
-                String logInfoType = getLogInfoTypeByOpcode(mSendingAttributesRequest.getRequestOpcode());
+            if (mSendingRequest != null) {
+                String logInfoType = mSendingRequest.getClass().getSimpleName();
                 Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
-                mSendingAttributesRequest.parseResponse(responseData);
-                // int parseResult = mSendingAttributesRequest.getParseResult();
+                mSendingRequest.parseResponse(responseData);
+                // int parseResult = mSendingRequest.getParseResult();
             } else {
                 Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "Internal status exception"));
             }
@@ -800,9 +798,6 @@ public class LocalUsbConnector {
      * Calling this method will create a cache queue to store the request that the user
      * will send, and start a thread to send the request in cache queue.
      * <p>request may be one of read request or write request</p>
-     *
-     * @see LocalUsbConnector#writeAttributesRequest(WriteAttributeRequest)
-     * @see LocalUsbConnector#readAttributesRequest(ReadAttributeRequest)
      */
     private void startReceivingRequestData() {
         if (mSendRequestCacheQueue == null) {
@@ -853,25 +848,26 @@ public class LocalUsbConnector {
         }
     }
 
-
     /**
-     * Call this method to write a attribute value to the server.
-     * <p>You can add a callback method {@link WriteAttributeRequest#addWriteAttributeRequestCallback(WriteAttributeRequestCallback)} on
-     * the {@link WriteAttributeRequest} object to monitor the execution status of this  instruction</p>
+     * Call this method to send a request instance to usb.
+     * <p>You can add a callback object on the object to listen the execution status of this instruction</p>
      *
-     * @param writeAttributesRequest An entity object encapsulates some information of the attribute when writing the request.
+     * <p> For example, You can add a callback method {@link WriteAttributeRequest#addWriteAttributeRequestCallback(WriteAttributeRequestCallback)} on
+     * the {@link WriteAttributeRequest} object to monitor the data write status</p>
+     *
      * @see WriteAttributeRequest#addWriteAttributeRequestCallback(WriteAttributeRequestCallback)
+     * @see ReadAttributeRequest#addReadAttributeRequestCallback(ReadAttributeRequestCallback)
      */
-    public void writeAttributesRequest(WriteAttributeRequest writeAttributesRequest) {
-        if (writeAttributesRequest == null) {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_WRITE_REQUEST, "send failed, argus can not be null"));
+    public void sendRequest(BaseRequest requestInstance) {
+        if (requestInstance == null) {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "send failed, sent request can not be null"));
             return;
         }
 
         if (mSendRequestCacheQueue != null) {
-            mSendRequestCacheQueue.offer(writeAttributesRequest);
+            mSendRequestCacheQueue.offer(requestInstance);
         } else {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_WRITE_REQUEST, "send failed, connection has not been established"));
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "send failed, connection has not been established"));
         }
     }
 
@@ -898,52 +894,12 @@ public class LocalUsbConnector {
         }
     }
 
-    /**
-     * Call this method to read a attribute value from the server.
-     * <p>You can add a callback method {@link ReadAttributeRequest#addReadAttributeRequestCallback(ReadAttributeRequestCallback)} on
-     * the {@link ReadAttributeRequest} object to monitor the execution status of this instruction</p>
-     *
-     * @param readAttributesRequest An entity object encapsulates some information of the read attribute request.
-     * @see ReadAttributeRequest#addReadAttributeRequestCallback(ReadAttributeRequestCallback)
-     */
-    public void readAttributesRequest(ReadAttributeRequest readAttributesRequest) {
-        if (readAttributesRequest == null) {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_READ_REQUEST, "send failed, argus can not be null"));
-            return;
-        }
-
-        if (mSendRequestCacheQueue != null) {
-            mSendRequestCacheQueue.offer(readAttributesRequest);
-        } else {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_READ_REQUEST, "send failed, connection has not been established"));
-        }
-    }
-
-    /**
-     * Call this method to send a request to inform the server of the client's maximum receive MTU size and request
-     * the server to response with its maximum receive MTU size.
-     *
-     * @param exchangeMtuRequest an request object containing the client's maximum MTU size.
-     */
-    public void sendExchangeMtuRequest(ExchangeMtuRequest exchangeMtuRequest) {
-        if (exchangeMtuRequest == null) {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST, "send failed, argus can not be null"));
-            return;
-        }
-
-        if (mSendRequestCacheQueue != null) {
-            mSendRequestCacheQueue.offer(exchangeMtuRequest);
-        } else {
-            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST, "send failed, connection has not been established"));
-        }
-    }
-
 
     /**
      * A blocked buffer queue for storing request messages.
      * <p>When the usb connection is disconnected, this queue needs to be cleared.</p>
      */
-    private LinkedBlockingQueue<BaseAttributeRequest> mSendRequestCacheQueue;
+    private LinkedBlockingQueue<BaseRequest> mSendRequestCacheQueue;
 
     /**
      * Call this method to write data to the bulk out endpoint of the USB.
@@ -987,22 +943,22 @@ public class LocalUsbConnector {
                 mSendNextRequestLock.lock();
                 try {
                     // construct request message.
-                    BaseAttributeRequest attributeRequest = mSendRequestCacheQueue.take();
-                    attributeRequest.setRequestOpcode();
-                    attributeRequest.setAttPduLength();
-                    attributeRequest.createRequest();
-                    byte[] sendData    = attributeRequest.getSendData();
-                    String sendHexStr  = ByteUtil.convertHexString(sendData);
-                    String logInfoType = getLogInfoTypeByOpcode(attributeRequest.getRequestOpcode());
+                    BaseRequest sendRequest = mSendRequestCacheQueue.take();
+                    sendRequest.setRequestOpcode();
+                    sendRequest.setMessageLength();
+                    sendRequest.createRequest();
+                    byte[] sendData = sendRequest.getSendData();
+                    String sendHexStr = ByteUtil.convertHexString(sendData);
+                    String logInfoType = sendRequest.getClass().getSimpleName();
                     Log.i(TAG, UsbLogInfo.msg(logInfoType, "send request hex string: " + sendHexStr));
 
                     // send request message by bulk out.
-                    BaseRequestCallback requestCallback = attributeRequest.getRequestCallback();
-                    int                 writeRet        = writeData2BulkOutEndpoint(sendData);
+                    BaseRequestCallback requestCallback = sendRequest.getRequestCallback();
+                    int writeRet = writeData2BulkOutEndpoint(sendData);
                     if (writeRet >= 0) {
                         Log.i(TAG, UsbLogInfo.msg(logInfoType, "write bulk success, result is " + writeRet));
                         // Record the write request currently sent.
-                        mSendingAttributesRequest = attributeRequest;
+                        mSendingRequest = sendRequest;
                         if (requestCallback != null) requestCallback.onSendSuccess();
 
                         // If the thread has not been woken up within 30 seconds, the previous task is considered to have failed to send.
@@ -1035,13 +991,13 @@ public class LocalUsbConnector {
     private static String getLogInfoTypeByOpcode(int attributeOpcode) {
         String logInfoType = UsbLogInfo.TYPE_UNKNOWN_INFO_TYPE;
         switch (attributeOpcode) {
-            case AttributeOpcodeDefine.WRITE_REQUEST:
+            case AttPduOpcodeDefine.WRITE_REQUEST:
                 logInfoType = UsbLogInfo.TYPE_SEND_WRITE_REQUEST;
                 break;
-            case AttributeOpcodeDefine.READ_REQUEST:
+            case AttPduOpcodeDefine.READ_REQUEST:
                 logInfoType = UsbLogInfo.TYPE_SEND_READ_REQUEST;
                 break;
-            case AttributeOpcodeDefine.EXCHANGE_MTU_REQUEST:
+            case AttPduOpcodeDefine.EXCHANGE_MTU_REQUEST:
                 logInfoType = UsbLogInfo.TYPE_EXCHANGE_MTU_REQUEST;
                 break;
         }
@@ -1063,7 +1019,7 @@ public class LocalUsbConnector {
         @Override
         public void run() {
             mWriteAttributesCommand.createCommand();
-            byte[] sendData   = mWriteAttributesCommand.getSendData();
+            byte[] sendData = mWriteAttributesCommand.getSendData();
             String sendHexStr = ByteUtil.convertHexString(sendData);
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_SEND_WRITE_COMMAND, "send write command hex string: " + sendHexStr));
             int writeRet = writeData2BulkOutEndpoint(sendData);
@@ -1126,13 +1082,13 @@ public class LocalUsbConnector {
      * the {@link LocalUsbConnector#connect()} method again to establish a connection, otherwise you will not be able
      * to do the following:
      * <ul>
-     * <li>Write Request: {@link LocalUsbConnector#writeAttributesRequest(WriteAttributeRequest)}</li>
+     * <li>send Request: {@link LocalUsbConnector#sendRequest(BaseRequest)}</li>
      * <li>Write Command: {@link LocalUsbConnector#writeAttributesCommand(WriteAttributeCommand)}</li>
      * </ul>
      * <p>In addition, write requests and write commands that have not been sent in the cache queue will be discarded</p>
      *
      * @see LocalUsbConnector#connect()
-     * @see LocalUsbConnector#writeAttributesRequest(WriteAttributeRequest)
+     * @see LocalUsbConnector#sendRequest(BaseRequest)
      * @see LocalUsbConnector#writeAttributesCommand(WriteAttributeCommand)
      */
     public void disConnect() {

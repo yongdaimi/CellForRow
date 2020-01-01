@@ -1,7 +1,9 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
+import com.realsil.sdk.core.usb.connector.att.AttributeTypeIndexDefine;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadByTypeRequestCallback;
 
 import java.nio.ByteBuffer;
@@ -52,11 +54,11 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
      * it can be used to search all attributes between start handle is 0x0001 and end handle is 0xFFFF.
      * </p>
      * <p>
-     * attGroupType is defined in {@link com.realsil.sdk.core.usb.connector.att.AttributeTypeDefine}
+     * attGroupType is defined in {@link AttributeTypeIndexDefine}
      * </p>
      *
      * @param attributeType 2 or 16 octet UUID
-     * @see com.realsil.sdk.core.usb.connector.att.AttributeTypeDefine
+     * @see AttributeTypeIndexDefine
      */
     public ReadByTypeRequest(short attributeType) {
         this(DEFAULT_START_ATT_HANDLE, DEFAULT_END_ATT_HANDLE, attributeType);
@@ -67,13 +69,13 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
      * Use this constructor to create a Read By Group Type Request.
      *
      * <p>
-     * attGroupType is defined in {@link com.realsil.sdk.core.usb.connector.att.AttributeTypeDefine}
+     * attGroupType is defined in {@link AttributeTypeIndexDefine}
      * </p>
      *
      * @param startingAttHandle First requested handle number
      * @param endingAttHandle   Last requested handle number
      * @param attributeType     2 or 16 octet UUID
-     * @see com.realsil.sdk.core.usb.connector.att.AttributeTypeDefine
+     * @see AttributeTypeIndexDefine
      */
     public ReadByTypeRequest(int startingAttHandle, int endingAttHandle, short attributeType) {
         this.mStartingAttHandle = (short) startingAttHandle;
@@ -102,12 +104,13 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcodeDefine.READ_BY_TYPE_REQUEST;
+        this.request_opcode = AttPduOpcodeDefine.READ_BY_TYPE_REQUEST;
     }
 
     @Override
-    public void setAttPduLength() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_STARTING_HANDLE_FIELD + LENGTH_ENDING_HANDLE_FIELD + LENGTH_ATTRIBUTE_TYPE_FIELD;
+    public void setMessageLength() {
+        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_STARTING_HANDLE
+                + AttPduParamLengthDefine.LENGTH_ATT_ENDING_HANDLE + AttPduParamLengthDefine.LENGTH_ATT_ATTRIBUTE_TYPE;
     }
 
     @Override
@@ -121,7 +124,7 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mAttPduLength);
+        byteBuffer.put(1, (byte) mMessageLength);
 
         /// Put Att PDU
         // Att opcode
@@ -137,7 +140,7 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcodeDefine.READ_BY_TYPE_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.READ_BY_TYPE_RESPONSE) {
             byte handle_value_pair_length = response[1];
             int attribute_data_list_length = response.length - 2; // Attribute Opcode(1B) + Length(1B) + Attribute Data List(4 to (ATT_MTU- 2))
             byte[] attribute_data_list = new byte[attribute_data_list_length];

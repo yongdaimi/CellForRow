@@ -1,11 +1,13 @@
 package com.realsil.sdk.core.usb.connector.att.callback;
 
+import com.realsil.sdk.core.usb.connector.BaseRequestCallback;
+
 /**
  * This callback is used to obtain the values of attributes by send {@link com.realsil.sdk.core.usb.connector.att.impl.ReadByGroupTypeRequest}
  *
  * @author xp.chen
  */
-public class ReadByGroupTypeRequestCallback extends BaseRequestCallback {
+public abstract class ReadByGroupTypeRequestCallback extends BaseRequestCallback {
 
     /**
      * This callback method will be called when received read response from server.

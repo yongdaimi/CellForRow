@@ -1,6 +1,7 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
 
@@ -15,6 +16,15 @@ import java.nio.ByteOrder;
  */
 public class WriteAttributeRequest extends BaseAttributeRequest {
 
+    /**
+     * The handler of the attribute to be written or read.
+     */
+    private short mAttHandle;
+
+    /**
+     * The value of the attribute to be written.
+     */
+    private byte[] mAttValue;
 
     /**
      * Use this constructor to create a Write Attributes Request.
@@ -42,17 +52,17 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
      * @return A Callback currently for listening to {@link WriteAttributeRequest}.
      */
     public WriteAttributeRequestCallback getWriteAttributeRequestCallback() {
-        return (WriteAttributeRequestCallback)mBaseRequestCallback;
+        return (WriteAttributeRequestCallback) mBaseRequestCallback;
     }
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcodeDefine.WRITE_REQUEST;
+        this.request_opcode = AttPduOpcodeDefine.WRITE_REQUEST;
     }
 
     @Override
-    public void setAttPduLength() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_ATT_HANDLE_FIELD + mAttValue.length;
+    public void setMessageLength() {
+        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE + mAttValue.length;
     }
 
     @Override
@@ -66,11 +76,11 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mAttPduLength);
+        byteBuffer.put(1, (byte) mMessageLength);
 
         /// Put Att PDU
         // Att opcode
-        byteBuffer.put(2, AttributeOpcodeDefine.WRITE_REQUEST);
+        byteBuffer.put(2, AttPduOpcodeDefine.WRITE_REQUEST);
         // Att handle
         byteBuffer.putShort(3, mAttHandle);
         // Att value
@@ -80,14 +90,15 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcodeDefine.WRITE_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
             if (getWriteAttributeRequestCallback() != null) {
                 getWriteAttributeRequestCallback().onWriteSuccess();
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         } else {
-            if (getWriteAttributeRequestCallback() != null)
+            if (getWriteAttributeRequestCallback() != null) {
                 getWriteAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
+            }
         }
     }
 

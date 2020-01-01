@@ -1,18 +1,28 @@
 package com.realsil.sdk.core.usb.connector.cmd.impl;
 
-public abstract class BaseUsbRequest {
+import com.realsil.sdk.core.usb.connector.BaseRequest;
+import com.realsil.sdk.core.usb.connector.UsbConfig;
 
+public abstract class BaseUsbRequest extends BaseRequest {
 
-    short request_opcode;
 
     /**
-     * The final message data send to the usb.
+     * The request opcode sent by client. If defined in {@link com.realsil.sdk.core.usb.connector.cmd.UsbCmdOpcodeDefine}
+     *
+     * @see com.realsil.sdk.core.usb.connector.cmd.UsbCmdOpcodeDefine#QUERY_BT_CONN_STATE
      */
-    byte[] mSendData;
+    short request_opcode;
 
-    public abstract void createRequest();
 
-    public abstract void parseResponse();
+    /**
+     * Use this method to create a Write Attributes Request.
+     */
+    @Override
+    public void createRequest() {
+        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mMessageLength;
+        this.mSendData = new byte[mSendDataLength];
+        this.mReportID = UsbConfig.REPORT_ID_4;
+    }
 
 
 }

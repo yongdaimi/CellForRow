@@ -12,4 +12,8 @@ public interface UsbCmdOpcodeDefine {
      */
     short QUERY_BT_CONN_STATE = (short) 0xFC84;
 
+    short READ_USB_DONGLE_CONFIG = (short) 0xFC85;
+
+    short READ_OTA_ALL_CHARACTERISTIC = (short) 0xFC86;
+
 }

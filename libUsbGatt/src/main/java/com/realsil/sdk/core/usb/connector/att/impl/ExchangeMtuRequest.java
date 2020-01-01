@@ -1,6 +1,7 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 import com.realsil.sdk.core.usb.connector.att.callback.ExchangeMtuRequestCallback;
 
@@ -53,12 +54,12 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = AttributeOpcodeDefine.EXCHANGE_MTU_REQUEST;
+        this.request_opcode = AttPduOpcodeDefine.EXCHANGE_MTU_REQUEST;
     }
 
     @Override
-    public void setAttPduLength() {
-        this.mAttPduLength = LENGTH_ATT_OPCODE_FIELD + LENGTH_CLIENT_RX_MTU_FIELD;
+    public void setMessageLength() {
+        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_CLIENT_RX_MTU;
     }
 
     @Override
@@ -72,7 +73,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mAttPduLength);
+        byteBuffer.put(1, (byte) mMessageLength);
 
         /// Put Att PDU
         // Att opcode
@@ -84,7 +85,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttributeOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
             short server_mtu_size = 0;
             if (response.length > 1) {
                 ByteBuffer buffer = ByteBuffer.wrap(response);

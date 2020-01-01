@@ -1,30 +1,30 @@
 package com.realsil.sdk.core.usb.connector.att.impl;
 
-import com.realsil.sdk.core.usb.connector.att.AttributeErrorCodeDefine;
-import com.realsil.sdk.core.usb.connector.att.AttributeOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.BaseRequest;
+import com.realsil.sdk.core.usb.connector.att.AttPduErrorCodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
-import com.realsil.sdk.core.usb.connector.att.callback.BaseRequestCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * An abstract class template for creating a pdu with a response
+ * An abstract class template for creating ATT PDU Request.
  *
  * @author xp.chen
  */
-public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
+public abstract class BaseAttributeRequest extends BaseRequest {
 
     /**
-     * The request opcode sent by client. It will be included in the request pdu to be sent, defined in {@link AttributeOpcodeDefine}.
+     * The request opcode sent by client. It will be included in the request pdu to be sent, defined in {@link AttPduOpcodeDefine}.
      *
-     * @see AttributeOpcodeDefine#READ_REQUEST
-     * @see AttributeOpcodeDefine#WRITE_REQUEST
+     * @see AttPduOpcodeDefine#READ_REQUEST
+     * @see AttPduOpcodeDefine#WRITE_REQUEST
      */
     byte request_opcode;
 
     /**
-     * The response opcode return by server. If server processing fails, it will be equal to {@link AttributeOpcodeDefine#ERROR_RESPONSE}.
+     * The response opcode return by server. If server processing fails, it will be equal to {@link AttPduOpcodeDefine#ERROR_RESPONSE}.
      */
     byte response_opcode;
 
@@ -39,9 +39,9 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
     short error_att_handle;
 
     /**
-     * The reason why the request has generated an error response, it is defined in class {@link AttributeErrorCodeDefine}.
+     * The reason why the request has generated an error response, it is defined in class {@link AttPduErrorCodeDefine}.
      *
-     * @see AttributeErrorCodeDefine
+     * @see AttPduErrorCodeDefine
      */
     byte error_code;
 
@@ -61,34 +61,10 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
     }
 
     /**
-     * A callback is used to listen the data sending status when the client sends request data to the server.
-     */
-    BaseRequestCallback mBaseRequestCallback;
-
-    /**
-     * Get the callback currently used to listen for {@link BaseRequestCallback}.
-     *
-     * @return A Callback currently for listening to {@link BaseRequestCallback}.
-     */
-    public BaseRequestCallback getRequestCallback() {
-        return mBaseRequestCallback;
-    }
-
-    /**
-     * Call this method to set internal {@link BaseAttributeRequest#request_opcode} member variables.
-     */
-    public abstract void setRequestOpcode();
-
-    /**
-     * Call this method to set internal {@link BaseAttributeRequest#mAttPduLength} member variables.
-     */
-    public abstract void setAttPduLength();
-
-    /**
      * Call this method to get the request opcode sent by client.
      *
      * @return request code.
-     * @see AttributeOpcodeDefine
+     * @see AttPduOpcodeDefine
      */
     public byte getRequestOpcode() {
         return request_opcode;
@@ -97,8 +73,9 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
     /**
      * Use this method to create a Write Attributes Request.
      */
+    @Override
     public void createRequest() {
-        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mAttPduLength;
+        this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mMessageLength;
         this.mSendData = new byte[mSendDataLength];
         this.mReportID = selectComfortableReportID(mSendDataLength);
     }
@@ -110,9 +87,10 @@ public abstract class BaseAttributeRequest extends BaseAttributeProtocol {
      * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_SUCCESS
      * @see com.realsil.sdk.core.usb.connector.att.AttributeParseResult#PARSE_FAILED
      */
+    @Override
     public void parseResponse(byte[] response) {
         response_opcode = response[0];
-        if (response_opcode == AttributeOpcodeDefine.ERROR_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.ERROR_RESPONSE) {
             ByteBuffer buffer = ByteBuffer.wrap(response);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             error_request_opcode = buffer.get(1);

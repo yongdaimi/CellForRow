@@ -5,7 +5,7 @@ package com.realsil.sdk.core.usb.connector.att;
  *
  * @author xp.chen
  */
-public interface AttributeTypeDefine {
+public interface AttributeTypeIndexDefine {
 
     /**
      * 0x2800 = Primary Service

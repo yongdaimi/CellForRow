@@ -1,11 +1,13 @@
 package com.realsil.sdk.core.usb.connector.att.callback;
 
+import com.realsil.sdk.core.usb.connector.BaseRequestCallback;
+
 /**
  * A callback method is used to listen the status that client send {@link com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest}
  * to server.
  * @author xp.chen
  */
-public class ExchangeMtuRequestCallback extends BaseRequestCallback {
+public abstract class ExchangeMtuRequestCallback extends BaseRequestCallback {
 
     /**
      * This callback method will be called when the {@link com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest} is sent successfully
