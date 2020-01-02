@@ -56,7 +56,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
 
     @Override
     public void setMessageLength() {
-        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE;
+        this.mSendMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE;
     }
 
     @Override
@@ -70,7 +70,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mMessageLength);
+        byteBuffer.put(1, (byte) mSendMessageLength);
 
         /// Put Att PDU
         // Att opcode
@@ -83,13 +83,8 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
         if (response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
-            byte[] att_value;
-            if (response.length > 1) {
-                att_value = new byte[response.length - 1];
-                System.arraycopy(response, 1, att_value, 0, att_value.length);
-            } else {
-                att_value = new byte[0];
-            }
+            byte[] att_value = new byte[mReceiveMessageLength - AttPduParamLengthDefine.LENGTH_ATT_OPCODE];
+            System.arraycopy(response, 3, att_value, 0, att_value.length);
 
             if (getReadAttributeRequestCallback() != null) {
                 getReadAttributeRequestCallback().onReadSuccess(att_value);

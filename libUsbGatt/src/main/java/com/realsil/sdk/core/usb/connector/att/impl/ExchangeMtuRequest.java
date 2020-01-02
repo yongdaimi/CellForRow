@@ -59,7 +59,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
 
     @Override
     public void setMessageLength() {
-        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_CLIENT_RX_MTU;
+        this.mSendMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_CLIENT_RX_MTU;
     }
 
     @Override
@@ -73,7 +73,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mMessageLength);
+        byteBuffer.put(1, (byte) mSendMessageLength);
 
         /// Put Att PDU
         // Att opcode
@@ -87,11 +87,10 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
         super.parseResponse(response);
         if (response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
             short server_mtu_size = 0;
-            if (response.length > 1) {
-                ByteBuffer buffer = ByteBuffer.wrap(response);
-                buffer.order(ByteOrder.LITTLE_ENDIAN);
-                server_mtu_size = buffer.getShort(1);
-            }
+            ByteBuffer buffer = ByteBuffer.wrap(response);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            server_mtu_size = buffer.getShort(3);
+
             if (getExchangeMtuRequestCallback() != null) {
                 getExchangeMtuRequestCallback().onReceiveServerRxMtu(server_mtu_size & 0x0FF);
             }

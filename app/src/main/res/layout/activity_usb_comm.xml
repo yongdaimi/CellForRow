@@ -13,6 +13,20 @@
         android:textAllCaps="false" />
 
     <Button
+        android:id="@+id/btn_query_bt_conn_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Query BT Connect State"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_read_dongle_config"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Read Dongle Config"
+        android:textAllCaps="false" />
+
+    <Button
         android:id="@+id/btn_send_att_pdu"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

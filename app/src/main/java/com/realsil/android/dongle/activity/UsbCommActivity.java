@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,6 +25,9 @@ import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
 import com.realsil.sdk.core.usb.connector.UsbError;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.impl.QueryBTConnectStateRequest;
+import com.realsil.sdk.core.usb.connector.cmd.impl.ReadDongleConfigRequest;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -33,6 +37,8 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
 
     private Button btn_send_att_pdu;
     private Button btn_setup_usb_connector;
+    private Button btn_query_bt_conn_state;
+    private Button btn_read_dongle_config;
 
     private RecyclerView rv_msg_list;
 
@@ -72,6 +78,12 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
 
         btn_send_att_pdu = findViewById(R.id.btn_send_att_pdu);
         btn_send_att_pdu.setOnClickListener(this);
+
+        btn_query_bt_conn_state = findViewById(R.id.btn_query_bt_conn_state);
+        btn_query_bt_conn_state.setOnClickListener(this);
+
+        btn_read_dongle_config = findViewById(R.id.btn_read_dongle_config);
+        btn_read_dongle_config.setOnClickListener(this);
     }
 
 
@@ -83,6 +95,12 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
                 break;
             case R.id.btn_send_att_pdu:
                 send_att_pdu_to_server();
+                break;
+            case R.id.btn_query_bt_conn_state:
+                query_bt_conn_state();
+                break;
+            case R.id.btn_read_dongle_config:
+                read_dongle_config_state();
                 break;
             default:
                 break;
@@ -162,6 +180,29 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
     private void send_att_pdu_to_server() {
         WriteAttributeCommand writeAttributeCommand = new WriteAttributeCommand((short) 0x0005, new byte[]{0x01, 0x02, 0x03});
         LocalUsbConnector.getInstance().writeAttributesCommand(writeAttributeCommand);
+    }
+
+
+    private void query_bt_conn_state() {
+        QueryBTConnectStateRequest queryBTConnectStateRequest = new QueryBTConnectStateRequest();
+        queryBTConnectStateRequest.addQueryBTConnectStateRequestCallback(new QueryBTConnectStateRequestCallback() {
+            @Override
+            public void onReceiveConnectState(int statusCode, boolean connectState) {
+                super.onReceiveConnectState(statusCode, connectState);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getApplicationContext(), "statusCode: "+statusCode+", connectState: "+connectState, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(queryBTConnectStateRequest);
+    }
+
+    private void read_dongle_config_state() {
+        ReadDongleConfigRequest readDongleConfigRequest = new ReadDongleConfigRequest();
+        LocalUsbConnector.getInstance().sendRequest(readDongleConfigRequest);
     }
 
     private void sendMessage(UsbMsg usbMsg) {

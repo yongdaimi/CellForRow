@@ -6,7 +6,7 @@ public abstract class BaseRequest {
     /**
      * The length of the report id field in the sent message (1 Octets).
      */
-    private static final int LENGTH_REPORT_ID_FIELD   = 1;
+    private static  final int LENGTH_REPORT_ID_FIELD   = 1;
     /**
      * The length of the message len field (1 Octets).
      * Note: Does not include the field itself and Report ID.
@@ -19,7 +19,7 @@ public abstract class BaseRequest {
     public static final int LENGTH_WRITE_REQUEST_HEAD = LENGTH_REPORT_ID_FIELD + LENGTH_MESSAGE_LEN_FIELD;
 
     /**
-     * The true length of the message.
+     * The true length of the send message.
      * <p> If the request is {@link com.realsil.sdk.core.usb.connector.att.impl.BaseAttributeRequest}, the length is ATT PDU Length </p>
      * <p> If the request is {@link com.realsil.sdk.core.usb.connector.cmd.impl.BaseUsbRequest}, the length is Cmd hdr Length </p>
      *
@@ -30,8 +30,13 @@ public abstract class BaseRequest {
      * @see com.realsil.sdk.core.usb.connector.att.impl.BaseAttributeRequest
      * @see com.realsil.sdk.core.usb.connector.cmd.impl.BaseUsbRequest
      */
-    protected int mMessageLength;
+    protected int mSendMessageLength;
 
+    /**
+     * The true length of the receive message.
+     */
+    protected int mReceiveMessageLength;
+    
     /**
      * Call this method to set internal opcode code member variables.
      * <p>The opcode will be 2 octet if the request is {@link com.realsil.sdk.core.usb.connector.cmd.impl.BaseUsbRequest}</p>
@@ -40,7 +45,7 @@ public abstract class BaseRequest {
     public abstract void setRequestOpcode();
 
     /**
-     * Call this method to set internal {@link BaseRequest#mMessageLength} member variables.
+     * Call this method to set internal {@link BaseRequest#mSendMessageLength} member variables.
      */
     public abstract void setMessageLength();
 

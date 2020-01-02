@@ -62,7 +62,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
 
     @Override
     public void setMessageLength() {
-        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE + mAttValue.length;
+        this.mSendMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_HANDLE + mAttValue.length;
     }
 
     @Override
@@ -76,7 +76,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mMessageLength);
+        byteBuffer.put(1, (byte) mSendMessageLength);
 
         /// Put Att PDU
         // Att opcode

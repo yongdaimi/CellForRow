@@ -8,12 +8,12 @@ package com.realsil.sdk.core.usb.connector.cmd;
 public interface UsbCmdOpcodeDefine {
 
     /**
-     * 0xFC84 = Query bluetooth connection state.
+     * 0xFC84 = Query bluetooth connection state request.
      */
-    short QUERY_BT_CONN_STATE = (short) 0xFC84;
-
-    short READ_USB_DONGLE_CONFIG = (short) 0xFC85;
-
-    short READ_OTA_ALL_CHARACTERISTIC = (short) 0xFC86;
+    short QUERY_BT_CONN_STATE_REQUEST    = (short) 0xFC84;
+    /**
+     * 0xFC82 = Read usb dongle config request.
+     */
+    short READ_USB_DONGLE_CONFIG_REQUEST = (short) 0xFC82;
 
 }

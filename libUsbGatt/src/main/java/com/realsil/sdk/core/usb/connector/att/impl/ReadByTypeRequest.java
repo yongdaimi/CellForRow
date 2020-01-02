@@ -109,7 +109,7 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
 
     @Override
     public void setMessageLength() {
-        this.mMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_STARTING_HANDLE
+        this.mSendMessageLength = AttPduParamLengthDefine.LENGTH_ATT_OPCODE + AttPduParamLengthDefine.LENGTH_ATT_STARTING_HANDLE
                 + AttPduParamLengthDefine.LENGTH_ATT_ENDING_HANDLE + AttPduParamLengthDefine.LENGTH_ATT_ATTRIBUTE_TYPE;
     }
 
@@ -124,7 +124,7 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
         // ReportID
         byteBuffer.put(mReportID);
         // message length(ATT PDU length)
-        byteBuffer.put(1, (byte) mMessageLength);
+        byteBuffer.put(1, (byte) mSendMessageLength);
 
         /// Put Att PDU
         // Att opcode

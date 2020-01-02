@@ -22,8 +22,12 @@ public abstract class BaseRequestCallback {
     public void onSendFailed(int sendResult) {}
 
     /**
-     * This callback method will be called when the request is sent successfully,
-     * but an error response pdu is received from the server.
+     * This callback method will be called when the request is sent successfully,but an error
+     * response pdu is received from the server.
+     * <p> <br>Note:</br>
+     * This method will only be called when the format of the sent message is ATT PDU and the
+     * server processing fails.
+     * </p>
      *
      * @param att_opcode   Opcode of error response, When receiving an error, it is {@link AttPduOpcodeDefine#ERROR_RESPONSE}.
      * @param request_code The request opcode that generated this error response.

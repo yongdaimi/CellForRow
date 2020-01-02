@@ -7,8 +7,9 @@ public abstract class QueryBTConnectStateRequestCallback extends BaseRequestCall
     /**
      * This callback method will be called when received bt connect state.
      *
+     * @param statusCode Status code of the current command, 0 means success, other means failure.
      * @param connectState true: has connected, false, has disconnected.
      */
-    public void onReceiveConnectState(boolean connectState) {}
+    public void onReceiveConnectState(int statusCode, boolean connectState) {}
 
 }
