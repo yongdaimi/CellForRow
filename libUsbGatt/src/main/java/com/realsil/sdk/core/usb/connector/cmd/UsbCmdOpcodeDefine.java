@@ -15,5 +15,9 @@ public interface UsbCmdOpcodeDefine {
      * 0xFC82 = Read usb dongle config request.
      */
     short READ_USB_DONGLE_CONFIG_REQUEST = (short) 0xFC82;
+    /**
+     * 0xFC83 = Exchange mtu request.
+     */
+    short EXCHANGE_MTU_REQUEST           = (short) 0xFC83;
 
 }

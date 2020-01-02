@@ -6,13 +6,17 @@ import android.util.Log;
 
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
 import com.realsil.sdk.core.usb.connector.UsbError;
-import com.realsil.sdk.core.usb.connector.att.callback.ExchangeMtuRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
-import com.realsil.sdk.core.usb.connector.att.impl.ExchangeMtuRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
+import com.realsil.sdk.core.usb.connector.cmd.callback.ExchangeMtuRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.ReadDongleConfigRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.impl.ExchangeMtuRequest;
+import com.realsil.sdk.core.usb.connector.cmd.impl.QueryBTConnectStateRequest;
+import com.realsil.sdk.core.usb.connector.cmd.impl.ReadDongleConfigRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -444,12 +448,46 @@ public class UsbGatt {
         int setupRet = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
         if (setupRet != UsbError.CODE_NO_ERROR) {
             Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
+            return false;
         }
-
         LocalUsbConnector.getInstance().connect();
+
+        queryBTConnectStateRequest();
         return true;
     }
 
+    /**
+     * Call this method to query the current Bluetooth connection status.
+     */
+    private void queryBTConnectStateRequest() {
+        QueryBTConnectStateRequest queryBTConnectStateRequest = new QueryBTConnectStateRequest();
+        queryBTConnectStateRequest.addQueryBTConnectStateRequestCallback(new QueryBTConnectStateRequestCallback() {
+            @Override
+            public void onReceiveConnectState(int statusCode, int connectState) {
+                super.onReceiveConnectState(statusCode, connectState);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onConnectionStateChange(UsbGatt.this, UsbGatt.GATT_SUCCESS, connectState);
+                }
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onConnectionStateChange(UsbGatt.this, UsbGatt.GATT_FAILURE, UsbGatt.STATE_DISCONNECTED);
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onConnectionStateChange(UsbGatt.this, UsbGatt.GATT_FAILURE, UsbGatt.STATE_DISCONNECTED);
+                }
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(queryBTConnectStateRequest);
+    }
 
 
     /**
@@ -471,8 +509,8 @@ public class UsbGatt {
         int setupRet = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
         if (setupRet != UsbError.CODE_NO_ERROR) {
             Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
+            return false;
         }
-
         LocalUsbConnector.getInstance().connect();
         return true;
     }
@@ -519,10 +557,53 @@ public class UsbGatt {
         }
 
         mCharacteristics.clear();
-
         // TODO: 2019-12-04
+        readDongleConfigRequest();
         return true;
     }
+
+    /**
+     * Get all the information of ota Characteristic by this method.
+     */
+    private void readDongleConfigRequest() {
+        ReadDongleConfigRequest readDongleConfigRequest = new ReadDongleConfigRequest();
+        readDongleConfigRequest.addReadDongleConfigRequestCallback(new ReadDongleConfigRequestCallback() {
+            @Override
+            public void onReadOtaCharacteristicList(List<UsbGattCharacteristic> list) {
+                super.onReadOtaCharacteristicList(list);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onServicesDiscovered(UsbGatt.this, UsbGatt.GATT_SUCCESS);
+                }
+                mCharacteristics = list;
+            }
+
+            @Override
+            public void onReadFailed() {
+                super.onReadFailed();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onServicesDiscovered(UsbGatt.this, UsbGatt.GATT_FAILURE);
+                }
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onServicesDiscovered(UsbGatt.this, UsbGatt.GATT_FAILURE);
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                if (mUsbGattCallback != null) {
+                    mUsbGattCallback.onServicesDiscovered(UsbGatt.this, UsbGatt.GATT_FAILURE);
+                }
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(readDongleConfigRequest);
+    }
+
 
     /**
      * Call this method to request the server to respond with its maximum receive MTU size.
@@ -533,7 +614,7 @@ public class UsbGatt {
      */
     private void readMtuRequest(int mtu) {
         final int client_mtu_size = mtu;
-        ExchangeMtuRequest exchangeMtuRequest = new ExchangeMtuRequest(mtu);
+        ExchangeMtuRequest exchangeMtuRequest = new ExchangeMtuRequest();
         exchangeMtuRequest.addExchangeMtuRequestCallback(new ExchangeMtuRequestCallback() {
             @Override
             public void onReceiveServerRxMtu(int serverMtuSize) {
@@ -544,18 +625,18 @@ public class UsbGatt {
             }
 
             @Override
-            public void onSendFailed(int sendResult) {
-                super.onSendFailed(sendResult);
+            public void onReceiveFailed() {
+                super.onReceiveFailed();
                 if (mUsbGattCallback != null) {
                     mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, UsbGatt.GATT_FAILURE);
                 }
             }
 
             @Override
-            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
-                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
                 if (mUsbGattCallback != null) {
-                    mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, getGattErrorCode(error_code));
+                    mUsbGattCallback.onMtuChanged(UsbGatt.this, client_mtu_size, UsbGatt.GATT_FAILURE);
                 }
             }
 
@@ -569,7 +650,6 @@ public class UsbGatt {
         });
         LocalUsbConnector.getInstance().sendRequest(exchangeMtuRequest);
     }
-
 
     /**
      * Request an MTU size used for a given connection.
@@ -597,6 +677,5 @@ public class UsbGatt {
         readMtuRequest(mtu);
         return true;
     }
-
 
 }

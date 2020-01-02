@@ -1,5 +1,6 @@
 package com.realsil.sdk.core.usb.connector.cmd.impl;
 
+import com.realsil.sdk.core.usb.UsbGatt;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
@@ -13,6 +14,11 @@ public class QueryBTConnectStateRequest extends BaseUsbRequest {
      * If bt is connected, the connect status is 1.
      */
     private static final byte BT_HAS_CONNECTED = 1;
+
+    /**
+     * If bt is disConnected, the connect status is 0.
+     */
+    private static final byte BT_HAS_DISCONNECTED = 0;
 
     /**
      * Add a callback interface to listen the connect status of bluetooth.
@@ -67,11 +73,12 @@ public class QueryBTConnectStateRequest extends BaseUsbRequest {
         if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             byte connectStatus = responseData[8];
             if (getQueryBTConnectStateRequestCallback() != null) {
-                getQueryBTConnectStateRequestCallback().onReceiveConnectState(status_code, connectStatus == BT_HAS_CONNECTED);
+                getQueryBTConnectStateRequestCallback().onReceiveConnectState(connectStatus,
+                        connectStatus == BT_HAS_CONNECTED ? UsbGatt.STATE_CONNECTED : connectStatus);
             }
         } else {
             if (getQueryBTConnectStateRequestCallback() != null) {
-                getQueryBTConnectStateRequestCallback().onReceiveConnectState(status_code, false);
+                getQueryBTConnectStateRequestCallback().onReceiveConnectState(status_code, BT_HAS_DISCONNECTED);
             }
         }
     }

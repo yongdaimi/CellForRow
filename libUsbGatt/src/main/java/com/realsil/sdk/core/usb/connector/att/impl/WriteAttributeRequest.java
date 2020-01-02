@@ -80,7 +80,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
 
         /// Put Att PDU
         // Att opcode
-        byteBuffer.put(2, AttPduOpcodeDefine.WRITE_REQUEST);
+        byteBuffer.put(2, request_opcode);
         // Att handle
         byteBuffer.putShort(3, mAttHandle);
         // Att value

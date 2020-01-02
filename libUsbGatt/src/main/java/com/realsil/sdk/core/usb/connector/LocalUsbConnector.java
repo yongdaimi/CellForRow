@@ -779,21 +779,13 @@ public class LocalUsbConnector {
             case AttPduOpcodeDefine.WRITE_RESPONSE:
             case AttPduOpcodeDefine.READ_RESPONSE:
             case AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE:
-                mSendNextRequestLock.lock();
-                try {
-                    if (mSendingRequest != null) {
-                        String logInfoType = mSendingRequest.getClass().getSimpleName();
-                        Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
-                        mSendingRequest.parseResponse(responseData);
-                        // int parseResult = mSendingRequest.getParseResult();
-                    } else {
-                        Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse att pdu failed, Internal status exception"));
-                    }
-                    mSendNextRequestCondition.signal();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    mSendNextRequestLock.unlock();
+                if (mSendingRequest != null) {
+                    String logInfoType = mSendingRequest.getClass().getSimpleName();
+                    Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
+                    mSendingRequest.parseResponse(responseData);
+                    // int parseResult = mSendingRequest.getParseResult();
+                } else {
+                    Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse att pdu failed, Internal status exception"));
                 }
                 break;
             case AttPduOpcodeDefine.HANDLE_VALUE_INDICATION:
@@ -808,24 +800,15 @@ public class LocalUsbConnector {
     }
 
     private void parseUsbCmdResponseData(byte[] responseData) {
-        mSendNextRequestLock.lock();
-        try {
-            if (mSendingRequest != null) {
-                String logInfoType = mSendingRequest.getClass().getSimpleName();
-                Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
-                mSendingRequest.parseResponse(responseData);
-                // int parseResult = mSendingRequest.getParseResult();
-            } else {
-                Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse usb cmd failed, Internal status exception"));
-            }
-            mSendNextRequestCondition.signal();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            mSendNextRequestLock.unlock();
+        if (mSendingRequest != null) {
+            String logInfoType = mSendingRequest.getClass().getSimpleName();
+            Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
+            mSendingRequest.parseResponse(responseData);
+            // int parseResult = mSendingRequest.getParseResult();
+        } else {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse usb cmd failed, Internal status exception"));
         }
     }
-
 
     private void parseIndicationMessageFromServer(byte[] indicationData) {
         if (mServerIndicationCallbacks != null) {
@@ -1172,10 +1155,10 @@ public class LocalUsbConnector {
         @Override
         public void run() {
             mWriteAttributesCommand.createCommand();
-            writeRequest2InterruptOutEndpoint(mWriteAttributesCommand);
+            writeCommand2InterruptOutEndpoint(mWriteAttributesCommand);
         }
 
-        void writeRequest2InterruptOutEndpoint(WriteAttributeCommand command) {
+        void writeCommand2InterruptOutEndpoint(WriteAttributeCommand command) {
             if (mUsbDeviceConnection == null) {
                 Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "write command to interrupt out failed, connection has not been established"));
                 return;
