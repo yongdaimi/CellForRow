@@ -17,6 +17,9 @@ public interface UsbError {
     int CODE_USB_RECEIVE_DATA_FAILED            = -110;
     int CODE_USB_RELEASE_INTERFACE_FAILED       = -111;
     int CODE_CAN_NOT_FOUND_USB_INTERFACE        = -112;
-
+    int CODE_WRITE_REQUEST_TO_QUEUE_FAILED      = -113;
+    int CODE_WRITE_REQUEST_WAIT_FAILED          = -114;
+    int CODE_WRITE_COMMAND_TO_QUEUE_FAILED      = -115;
+    int CODE_WRITE_COMMAND_WAIT_FAILED          = -116;
 
 }

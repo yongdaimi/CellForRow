@@ -3,6 +3,7 @@ package com.realsil.sdk.core.usb.connector.att.impl;
 import com.realsil.sdk.core.usb.connector.BaseRequest;
 import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
+import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeCommandCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -15,6 +16,16 @@ import java.nio.ByteOrder;
  */
 public class WriteAttributeCommand extends BaseWriteAttributeCommand {
 
+
+    private WriteAttributeCommandCallback mWriteAttributeCommandCallback;
+
+    public WriteAttributeCommandCallback getWriteAttributeCommandCallback() {
+        return mWriteAttributeCommandCallback;
+    }
+
+    public void addWriteAttributeCommandCallback(WriteAttributeCommandCallback callback) {
+        this.mWriteAttributeCommandCallback = callback;
+    }
 
     /**
      * Use this constructor to create a Write Attributes Command.
