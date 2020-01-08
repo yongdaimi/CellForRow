@@ -19,13 +19,13 @@ public class UsbGattImpl {
      * operations.
      * @hide
      */
-    public static UsbGatt connectGatt(Context context, UsbDevice device, UsbGattCallback callback) {
+    public static UsbGatt connectGatt(UsbDevice device, Context context, UsbGattCallback callback) {
         if (callback == null) {
             throw new NullPointerException("callback is null");
         }
 
-        UsbGatt gatt = new UsbGatt(context, device);
-        gatt.connect(callback);
+        UsbGatt gatt = new UsbGatt(device);
+        gatt.connect(context, callback);
         return gatt;
     }
 }

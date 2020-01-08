@@ -95,9 +95,6 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
                 getExchangeMtuRequestCallback().onReceiveServerRxMtu(server_mtu_size & 0x0FF);
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
-        } else {
-            if (getExchangeMtuRequestCallback() != null)
-                getExchangeMtuRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
         }
     }
 

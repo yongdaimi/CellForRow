@@ -7,10 +7,12 @@ import android.util.Log;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
 import com.realsil.sdk.core.usb.connector.UsbError;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
+import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeCommandCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
+import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.ExchangeMtuRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.ReadDongleConfigRequestCallback;
@@ -35,9 +37,9 @@ import java.util.UUID;
  *
  * @author bingshanguxue
  */
-public class UsbGatt {
-    private static final String  TAG  = "UsbGatt";
-    private static final boolean DBG  = true;
+public final class UsbGatt {
+    private static final String TAG = "UsbGatt";
+    private static final boolean DBG = true;
     private static final boolean VDBG = true;
 
     /**
@@ -130,11 +132,12 @@ public class UsbGatt {
      */
     private UsbGattCallback mUsbGattCallback;
 
-    public UsbGatt(Context context, UsbDevice mDevice) {
-        this.mContext = context;
+    public UsbGatt(UsbDevice mDevice) {
         this.mDevice = mDevice;
         mConnState = CONN_STATE_IDLE;
+        mCharacteristics = new ArrayList<UsbGattCharacteristic>();
     }
+
 
     /**
      * Close this USB GATT client.
@@ -193,6 +196,9 @@ public class UsbGatt {
      * the remote device.
      */
     public UsbGattCharacteristic getCharacteristic(UUID uuid) {
+        if (mCharacteristics == null || mCharacteristics.size() <= 0) {
+            return null;
+        }
         for (UsbGattCharacteristic service : mCharacteristics) {
 //            if (service.getDevice().equals(mDevice) && service.getUuid().equals(uuid)) {
             if (service.getUuid().equals(uuid)) {
@@ -373,8 +379,24 @@ public class UsbGatt {
     private void writeAttributeCommand(UsbGattCharacteristic characteristic) {
         short att_handle = (short) characteristic.getInstanceId();
         byte[] att_value = characteristic.getValue();
+        final UsbGattCharacteristic write_characteristic = characteristic;
 
         WriteAttributeCommand writeCommand = new WriteAttributeCommand(att_handle, att_value);
+        writeCommand.addWriteAttributeCommandCallback(new WriteAttributeCommandCallback() {
+            @Override
+            public void onSendSuccess() {
+                super.onSendSuccess();
+                if (mUsbGattCallback != null)
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, GATT_SUCCESS);
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                if (mUsbGattCallback != null)
+                    mUsbGattCallback.onCharacteristicWrite(UsbGatt.this, write_characteristic, GATT_FAILURE);
+            }
+        });
         LocalUsbConnector.getInstance().writeAttributesCommand(writeCommand);
     }
 
@@ -427,7 +449,7 @@ public class UsbGatt {
      *                    automatically connect as soon as the remote device becomes available (true).
      * @return true, if the connection attempt was initiated successfully
      */
-    boolean connect(UsbGattCallback callback) {
+    boolean connect(Context context, UsbGattCallback callback) {
         if (DBG) {
             Log.d(TAG,
                     "connect() - device: " + mDevice.getDeviceName());
@@ -437,24 +459,60 @@ public class UsbGatt {
                 throw new IllegalStateException("Not idle");
             }
             mConnState = CONN_STATE_CONNECTING;
-            mUsbGattCallback = callback;
         }
-        int initRet = LocalUsbConnector.getInstance().initConnector(mContext);
-        if (initRet != UsbError.CODE_NO_ERROR) {
-            Log.d(TAG, "init usb connector failed, error code: " + initRet);
+        mContext = context;
+        mUsbGattCallback = callback;
+
+        int ret = LocalUsbConnector.getInstance().initConnector(mContext);
+        if (ret != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "init usb connector failed, error code: " + ret);
             return false;
         }
 
-        int setupRet = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
-        if (setupRet != UsbError.CODE_NO_ERROR) {
-            Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
+        ret = LocalUsbConnector.getInstance().setUsbDevice(mDevice);
+        if (ret != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "setup usb connector failed, error code: " + ret);
             return false;
         }
-        LocalUsbConnector.getInstance().connect();
 
+        addOnUsbDeviceStatusChangeCallback();
+
+        ret = LocalUsbConnector.getInstance().connect();
+        if (ret != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "connect failed, error code: " + ret);
+            return false;
+        }
         queryBTConnectStateRequest();
         return true;
     }
+
+    /**
+     * This callback will trigger when the state of the Bluetooth GATT connection changes.
+     */
+    private OnUsbDeviceStatusChangeCallback mOnUsbDeviceStatusChangeCallback = new OnUsbDeviceStatusChangeCallback() {
+        @Override
+        public void onDeviceConnectionStatusHasChanged(boolean connectionStatus) {
+            super.onDeviceConnectionStatusHasChanged(connectionStatus);
+            if (mUsbGattCallback != null) {
+                mUsbGattCallback.onConnectionStateChange(UsbGatt.this, GATT_SUCCESS,
+                        connectionStatus ? UsbGatt.STATE_CONNECTED : UsbGatt.STATE_DISCONNECTED);
+            }
+        }
+
+        @Override
+        public void onReceiveHandleValueNotification(short att_handle, byte[] att_value) {
+            super.onReceiveHandleValueNotification(att_handle, att_value);
+            UsbGattCharacteristic characteristic = new UsbGattCharacteristic(null, att_handle, 0, 0);
+            characteristic.setValue(att_value);
+            if (mUsbGattCallback != null)
+                mUsbGattCallback.onCharacteristicChanged(UsbGatt.this, characteristic);
+        }
+    };
+
+    private void addOnUsbDeviceStatusChangeCallback() {
+        LocalUsbConnector.getInstance().addOnUsbDeviceStatusChangeCallback(mOnUsbDeviceStatusChangeCallback);
+    }
+
 
     /**
      * Call this method to query the current Bluetooth connection status.
@@ -525,7 +583,9 @@ public class UsbGatt {
         if (DBG) {
             Log.d(TAG, "cancelOpen() - device: " + mDevice.getDeviceName());
         }
+
         LocalUsbConnector.getInstance().disConnect();
+        LocalUsbConnector.getInstance().removeOnUsbDeviceStatusChangeCallback(mOnUsbDeviceStatusChangeCallback);
     }
 
 
@@ -556,7 +616,10 @@ public class UsbGatt {
             Log.d(TAG, "discoverServices() - device: " + mDevice.getDeviceName());
         }
 
-        mCharacteristics.clear();
+        if (mCharacteristics != null) {
+            mCharacteristics.clear();
+        }
+
         // TODO: 2019-12-04
         readDongleConfigRequest();
         return true;
@@ -571,10 +634,10 @@ public class UsbGatt {
             @Override
             public void onReadOtaCharacteristicList(List<UsbGattCharacteristic> list) {
                 super.onReadOtaCharacteristicList(list);
+                mCharacteristics = list;
                 if (mUsbGattCallback != null) {
                     mUsbGattCallback.onServicesDiscovered(UsbGatt.this, UsbGatt.GATT_SUCCESS);
                 }
-                mCharacteristics = list;
             }
 
             @Override

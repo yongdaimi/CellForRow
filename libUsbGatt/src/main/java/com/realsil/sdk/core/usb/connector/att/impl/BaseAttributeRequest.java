@@ -91,13 +91,6 @@ public abstract class BaseAttributeRequest extends BaseRequest {
     public void parseResponse(byte[] response) {
         response_opcode = response[2];
         mReceiveMessageLength = response[1] & 0x0FF;
-        if (response_opcode == AttPduOpcodeDefine.ERROR_RESPONSE) {
-            ByteBuffer buffer = ByteBuffer.wrap(response);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            error_request_opcode = buffer.get(3);
-            error_att_handle = buffer.getShort(4);
-            error_code = buffer.get(6);
-        }
     }
 
 }

@@ -16,8 +16,12 @@ public interface UsbCmdOpcodeDefine {
      */
     short READ_USB_DONGLE_CONFIG_REQUEST = (short) 0xFC82;
     /**
-     * 0xFC83 = Exchange mtu request.
+     * 0xFC83 = Exchange MTU request.
      */
-    short EXCHANGE_MTU_REQUEST           = (short) 0xFC83;
+    short EXCHANGE_MTU_REQUEST           = (short) 0xFC86;
+    /**
+     * 0xFC20 = HCI Vendor Download Command
+     */
+    short VENDOR_DOWNLOAD_COMMAND        = (short) 0xFC20;
 
 }

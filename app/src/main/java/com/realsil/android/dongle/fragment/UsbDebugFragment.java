@@ -1,9 +1,11 @@
-package com.realsil.android.dongle.activity;
+package com.realsil.android.dongle.fragment;
+
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,20 +13,18 @@ import android.os.Looper;
 import android.os.Message;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.realsil.android.dongle.R;
-import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
+import com.realsil.android.dongle.adapter.UsbDebugMsgListAdapter;
+import com.realsil.android.dongle.base.BaseFragment;
 import com.realsil.android.dongle.entity.UsbMsg;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
 import com.realsil.sdk.core.usb.connector.UsbError;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
-import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
 import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
@@ -34,17 +34,23 @@ import com.realsil.sdk.core.usb.connector.cmd.impl.ReadDongleConfigRequest;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class UsbCommActivity extends AppCompatActivity implements View.OnClickListener {
+public class UsbDebugFragment extends BaseFragment implements View.OnClickListener {
 
 
     private Button btn_send_att_pdu;
     private Button btn_setup_usb_connector;
     private Button btn_query_bt_conn_state;
     private Button btn_read_dongle_config;
+    private Button btn_write_attribute;
+
+    private Button btn_write_attribute_2;
+    private Button btn_write_attribute_4;
+    private Button btn_write_attribute_5;
+    private Button btn_write_attribute_8;
 
     private RecyclerView rv_msg_list;
 
-    private UsbMsgListAdapter mUsbMsgListAdapter;
+    private UsbDebugMsgListAdapter mUsbDebugMsgListAdapter;
 
     private static final String ERROR_MSG_INIT_USB_CONNECTOR   = "setup usb connector failed";
     private static final String ERROR_MSG_SEARCH_USB_DEVICE    = "can not found usb device";
@@ -56,42 +62,55 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
     private static final String TIPS_MSG_USB_DEVICE_ATTACHED = "usb device has attached";
     private static final String TIPS_MSG_USB_DEVICE_DETACHED = "usb device has detached";
 
-    private static final String TAG = UsbCommActivity.class.getSimpleName();
+    private static final String TAG = UsbDebugFragment.class.getSimpleName();
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_usb_comm);
-        initView();
+    protected void setContainer() {
+        setContentView(R.layout.fragment_usb_debug);
     }
 
-    private void initView() {
+    @Override
+    protected void init() {
         rv_msg_list = findViewById(R.id.lv_msg_list);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(getApplicationContext());
+        LinearLayoutManager layoutManager = new LinearLayoutManager(mContext);
         layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
         rv_msg_list.setLayoutManager(layoutManager);
         rv_msg_list.setHasFixedSize(true);
 
-        mUsbMsgListAdapter = new UsbMsgListAdapter(getApplicationContext(), new ArrayList<UsbMsg>());
-        rv_msg_list.setAdapter(mUsbMsgListAdapter);
+        mUsbDebugMsgListAdapter = new UsbDebugMsgListAdapter(mContext, new ArrayList<UsbMsg>());
+        rv_msg_list.setAdapter(mUsbDebugMsgListAdapter);
 
         btn_setup_usb_connector = findViewById(R.id.btn_setup_usb_connector);
-        btn_setup_usb_connector.setOnClickListener(this);
-
         btn_send_att_pdu = findViewById(R.id.btn_send_att_pdu);
-        btn_send_att_pdu.setOnClickListener(this);
 
         btn_query_bt_conn_state = findViewById(R.id.btn_query_bt_conn_state);
-        btn_query_bt_conn_state.setOnClickListener(this);
-
         btn_read_dongle_config = findViewById(R.id.btn_read_dongle_config);
+
+        btn_write_attribute = findViewById(R.id.btn_write_attribute);
+        btn_write_attribute_2 = findViewById(R.id.btn_write_attribute_2);
+        btn_write_attribute_4 = findViewById(R.id.btn_write_attribute_4);
+        btn_write_attribute_5 = findViewById(R.id.btn_write_attribute_5);
+        btn_write_attribute_8 = findViewById(R.id.btn_write_attribute_8);
+    }
+
+    @Override
+    protected void setListener() {
+        btn_setup_usb_connector.setOnClickListener(this);
+        btn_send_att_pdu.setOnClickListener(this);
+        btn_query_bt_conn_state.setOnClickListener(this);
         btn_read_dongle_config.setOnClickListener(this);
+
+        btn_write_attribute.setOnClickListener(this);
+        btn_write_attribute_2.setOnClickListener(this);
+        btn_write_attribute_4.setOnClickListener(this);
+        btn_write_attribute_5.setOnClickListener(this);
+        btn_write_attribute_8.setOnClickListener(this);
     }
 
 
     @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
+    public void onClick(View view) {
+        switch (view.getId()) {
             case R.id.btn_setup_usb_connector:
                 setup_usb_connector();
                 break;
@@ -104,6 +123,21 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
             case R.id.btn_read_dongle_config:
                 read_dongle_config_state();
                 break;
+            case R.id.btn_write_attribute:
+                writeAttributeRequest((byte) 0x10);
+                break;
+            case R.id.btn_write_attribute_2:
+                writeAttributeRequest((byte) 0x02);
+                break;
+            case R.id.btn_write_attribute_4:
+                writeAttributeRequest((byte) 0x04);
+                break;
+            case R.id.btn_write_attribute_5:
+                writeAttributeRequest((byte) 0x05);
+                break;
+            case R.id.btn_write_attribute_8:
+                writeAttributeRequest((byte) 0x08);
+                break;
             default:
                 break;
         }
@@ -114,14 +148,14 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             UsbMsg usbMsg = (UsbMsg) msg.obj;
-            mUsbMsgListAdapter.addMsgItem(usbMsg);
-            mUsbMsgListAdapter.notifyItemInserted(0);
+            mUsbDebugMsgListAdapter.addMsgItem(usbMsg);
+            mUsbDebugMsgListAdapter.notifyItemInserted(0);
             rv_msg_list.scrollToPosition(0);
         }
     };
 
     private void setup_usb_connector() {
-        int initRet = LocalUsbConnector.getInstance().initConnector(getApplicationContext());
+        int initRet = LocalUsbConnector.getInstance().initConnector(mContext);
         if (initRet != UsbError.CODE_NO_ERROR) {
             sendMessage(new UsbMsg(ERROR_MSG_INIT_USB_CONNECTOR, initRet));
             return;
@@ -143,7 +177,7 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
 
     private OnUsbDeviceStatusChangeCallback mOnUsbDeviceStatusChangeCallback = new OnUsbDeviceStatusChangeCallback() {
         @Override
-        public void authorizeCurrentDevice(boolean authorizeResult) {
+        public void authorizeCurrentDevice(UsbDevice usbDevice, boolean authorizeResult) {
             if (authorizeResult) {
                 int setupRet = LocalUsbConnector.getInstance().setupDevice();
                 if (setupRet != UsbError.CODE_NO_ERROR) {
@@ -161,16 +195,6 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
             } else {
                 sendMessage(new UsbMsg(ERROR_MSG_AUTHORIZE_USB_DEVICE, UsbMsg.MSG_TYPE_ERROR));
             }
-        }
-
-        @Override
-        public void onDeviceHasConnected() {
-
-        }
-
-        @Override
-        public void onDeviceHasDisconnected() {
-
         }
 
         @Override
@@ -192,24 +216,19 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
             @Override
             public void onSendFailed(int sendResult) {
                 super.onSendFailed(sendResult);
-                Toast.makeText(getApplicationContext(), "send failed", Toast.LENGTH_SHORT).show();
+                showToast("send failed");
             }
 
             @Override
             public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
                 super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
-                Toast.makeText(getApplicationContext(), "receive failed", Toast.LENGTH_SHORT).show();
+                showToast("receive failed");
             }
 
             @Override
             public void onReceiveTimeout() {
                 super.onReceiveTimeout();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(), "receive timeout", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                showToast("receive timeout");
             }
         });
         LocalUsbConnector.getInstance().sendRequest(writeAttributeRequest);
@@ -222,12 +241,7 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
             @Override
             public void onReceiveConnectState(int statusCode, int connectState) {
                 super.onReceiveConnectState(statusCode, connectState);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(), "statusCode: "+statusCode+", connectState: "+connectState, Toast.LENGTH_SHORT).show();
-                    }
-                });
+                showToast("statusCode: " + statusCode + ", connectState: " + connectState);
             }
         });
         LocalUsbConnector.getInstance().sendRequest(queryBTConnectStateRequest);
@@ -251,11 +265,11 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
         IntentFilter filter = new IntentFilter();
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-        registerReceiver(mBroadcastReceiver, filter);
+        mContext.registerReceiver(mBroadcastReceiver, filter);
     }
 
     private void destroyReceiver() {
-        unregisterReceiver(mBroadcastReceiver);
+        mContext.unregisterReceiver(mBroadcastReceiver);
     }
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -271,17 +285,62 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
         }
     };
 
+
+    private void writeAttributeRequest(byte reportId) {
+        WriteAttributeRequest writeAttributeRequest = new WriteAttributeRequest((short) 0x5e, new byte[]{0x09}, reportId);
+        writeAttributeRequest.addWriteAttributeRequestCallback(new WriteAttributeRequestCallback() {
+            @Override
+            public void onWriteSuccess() {
+                super.onWriteSuccess();
+                showToast("onWriteSuccess");
+            }
+
+            @Override
+            public void onSendSuccess() {
+                super.onSendSuccess();
+                showToast("onSendSuccess");
+            }
+
+            @Override
+            public void onSendFailed(int sendResult) {
+                super.onSendFailed(sendResult);
+                showToast("onSendFailed");
+            }
+
+            @Override
+            public void onReceiveFailed(byte att_opcode, byte request_code, short att_handler, byte error_code) {
+                super.onReceiveFailed(att_opcode, request_code, att_handler, error_code);
+                showToast("onReceiveFailed");
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                showToast("onReceiveTimeout");
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(writeAttributeRequest);
+    }
+
+
+    public static UsbDebugFragment newInstance() {
+        UsbDebugFragment mFragment = new UsbDebugFragment();
+        Bundle args = new Bundle();
+        mFragment.setArguments(args);
+        return mFragment;
+    }
+
+
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         initReceiver();
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         destroyReceiver();
     }
-
 
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/item_usb_download_patch"
+        android:icon="@drawable/ic_nav_chip"
+        android:title="@string/nav_bar_usb_download_patch"
+        android:checked="true"
+        android:orderInCategory="0"
+        />
+    <item
+        android:id="@+id/item_usb_data_debug"
+        android:icon="@drawable/ic_nav_usb_debug"
+        android:title="@string/nav_bar_usb_debug"
+        android:orderInCategory="1"
+        />
+
+</menu>

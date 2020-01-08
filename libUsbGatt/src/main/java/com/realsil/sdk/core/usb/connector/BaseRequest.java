@@ -105,7 +105,7 @@ public abstract class BaseRequest {
      * Select the appropriate Report ID based on the size of the packets sent.
      */
     public static byte selectComfortableReportID(int packageSize) {
-        return UsbConfig.selectComfortableReportID(packageSize);
+        return UsbConfig.selectTransparentTransportReportID(packageSize);
     }
 
 }

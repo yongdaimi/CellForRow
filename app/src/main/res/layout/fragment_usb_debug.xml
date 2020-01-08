@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dip"
+        android:background="@color/colorPrimaryDark"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="@string/usb_data_debug_title"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/font_14" />
+
+    </RelativeLayout>
+
+    <Button
+        android:id="@+id/btn_setup_usb_connector"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="setupUsbAdapter"
+        android:text="Setup Usb Connector"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_query_bt_conn_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Query BT Connect State"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_read_dongle_config"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Read Dongle Config"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_send_att_pdu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Send ATT PDU"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_write_attribute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Write Attribute"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_write_attribute_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Write Attribute 2"
+        android:textAllCaps="false"
+        android:visibility="gone"
+        />
+
+    <Button
+        android:id="@+id/btn_write_attribute_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Write Attribute 4"
+        android:textAllCaps="false"
+        android:visibility="gone"
+        />
+
+    <Button
+        android:id="@+id/btn_write_attribute_5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Write Attribute 5"
+        android:textAllCaps="false"
+        android:visibility="gone"
+        />
+
+    <Button
+        android:id="@+id/btn_write_attribute_8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Write Attribute 8"
+        android:textAllCaps="false"
+        android:visibility="gone"
+        />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/lv_msg_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="4dip"
+        android:background="@android:color/black"
+        />
+
+</LinearLayout>

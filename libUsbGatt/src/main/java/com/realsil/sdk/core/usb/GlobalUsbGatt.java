@@ -140,7 +140,7 @@ public class GlobalUsbGatt {
      * {@code UsbGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
      * callback.
      */
-    public boolean connect(UsbDevice device, final UsbGattCallback callback) {
+    public boolean connect(UsbDevice device, Context context, final UsbGattCallback callback) {
         if (mUsbManager == null) {
             Log.w(TAG,"BluetoothAdapter not initialized or unspecified address.");
             return false;
@@ -196,8 +196,8 @@ public class GlobalUsbGatt {
 //        close(address);
 
         //connecting to the GATT server on the device
-        UsbGatt gatt = new UsbGatt(mContext, device);
-        gatt.connect(new GattCallback());
+        UsbGatt gatt = new UsbGatt(device);
+        gatt.connect(context, new GattCallback());
 
         if (gatt == null) {
             Log.w(TAG,"UsbGatt not exist.  Unable to connect.");

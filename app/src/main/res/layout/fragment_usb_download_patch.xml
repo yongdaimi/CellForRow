@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dip"
+        android:background="@color/colorPrimaryDark"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="@string/usb_download_patch_title"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/font_14" />
+
+    </RelativeLayout>
+
+
+    <Button
+        android:id="@+id/btn_load_patch_code"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/usb_load_patch_code"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_load_config_file"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/usb_load_config_file"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btn_start_download_patch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/usb_start_download_patch"
+        android:textAllCaps="false" />
+
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_msg_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="4dip"
+        android:background="@android:color/black" />
+
+</LinearLayout>

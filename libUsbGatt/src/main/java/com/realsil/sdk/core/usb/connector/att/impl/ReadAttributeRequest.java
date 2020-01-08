@@ -90,10 +90,6 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
                 getReadAttributeRequestCallback().onReadSuccess(att_value);
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
-        } else {
-            if (getReadAttributeRequestCallback() != null) {
-                getReadAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
-            }
         }
     }
 

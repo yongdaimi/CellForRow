@@ -16,6 +16,7 @@ import android.os.Build;
 import android.util.Log;
 
 import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
+import com.realsil.sdk.core.usb.connector.att.AttPduParamLengthDefine;
 import com.realsil.sdk.core.usb.connector.att.callback.OnReceiveServerIndicationCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.OnReceiveServerNotificationCallback;
 import com.realsil.sdk.core.usb.connector.att.callback.ReadAttributeRequestCallback;
@@ -25,6 +26,8 @@ import com.realsil.sdk.core.usb.connector.att.impl.ReadAttributeRequest;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeCommand;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
 import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
+import com.realsil.sdk.core.usb.connector.cmd.UsbCmdVendorEventCodeDefine;
+import com.realsil.sdk.core.usb.connector.cmd.UsbCmdVendorEventSubCodeDefine;
 import com.realsil.sdk.core.usb.connector.util.ByteUtil;
 
 import java.nio.ByteBuffer;
@@ -76,13 +79,11 @@ public class LocalUsbConnector {
     /**
      * Set the maximum buffer size for data received on interrupt out endpoint.
      */
-    private static final int RECEIVE_BUFF_SIZE_ON_INTERRUPT_OUT = 255;
-
+    private static final int BUFF_SIZE_ON_INTERRUPT_ENDPOINT = 255;
 
     /* Global lock and condition */
-    private final ReentrantLock mSendNextRequestLock                = new ReentrantLock();
-    private final ReentrantLock mWriteData2BulkOutEndpointLock      = new ReentrantLock();
-    private final ReentrantLock mWriteData2InterruptOutEndpointLock = new ReentrantLock();
+    private final ReentrantLock mSendNextRequestLock           = new ReentrantLock();
+    private final ReentrantLock mWriteData2BulkOutEndpointLock = new ReentrantLock();
 
     private final Condition mSendNextRequestCondition = mSendNextRequestLock.newCondition();
     /* Global lock and condition */
@@ -480,8 +481,8 @@ public class LocalUsbConnector {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_INIT_USB_CONNECTOR, "authorize success, Device Name: "
                         + mSelectUsbDevice.getDeviceName()
-                        + "Product Name: " + mSelectUsbDevice.getProductName()
-                        + "Serial Number: " + mSelectUsbDevice.getSerialNumber()));
+                        + ", Product Name: " + mSelectUsbDevice.getProductName()
+                        + ", Serial Number: " + mSelectUsbDevice.getSerialNumber()));
             } else {
                 Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_INIT_USB_CONNECTOR, "authorize success, Device Name: " + mSelectUsbDevice.getDeviceName()));
             }
@@ -494,18 +495,16 @@ public class LocalUsbConnector {
      * Notify all callbacks that the current device is authorized.
      */
     private void notifyDeviceHasAuthorized(boolean authorizeResult) {
-        if (mOnUsbDeviceStatusChangeCallbacks != null) {
-            for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
-                callback.authorizeCurrentDevice(authorizeResult);
-            }
+        if (mOnUsbDeviceStatusChangeCallbacks == null) return;
+        for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
+            callback.authorizeCurrentDevice(mSelectUsbDevice, authorizeResult);
         }
     }
 
     private void notifyDeviceStatusChange(int errorCode, String detailInfo) {
-        if (mOnUsbDeviceStatusChangeCallbacks != null) {
-            for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
-                callback.onDeviceStatusChange(errorCode, detailInfo);
-            }
+        if (mOnUsbDeviceStatusChangeCallbacks == null) return;
+        for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
+            callback.onDeviceStatusChange(errorCode, detailInfo);
         }
     }
 
@@ -707,7 +706,7 @@ public class LocalUsbConnector {
                     System.arraycopy(recvBuf, 0, recvData, 0, recvlen);
                     Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS,
                             "receive data (bulk in, len = " + recvlen + "): " + ByteUtil.convertHexString(recvData)));
-                    parseReceiveData(recvData);
+                    parseResponseData(recvData);
                 } else {
                     Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "receive data failed, " + recvlen));
                 }
@@ -715,6 +714,7 @@ public class LocalUsbConnector {
             Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "interrupt bulk in listening thread"));
         }
     }
+
 
     /**
      * Listen for data from the usb interrupt in endpoint
@@ -725,22 +725,68 @@ public class LocalUsbConnector {
             super.run();
             Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "start listening for interrupt in endpoint data..."));
             while (!isInterrupted()) {
-                int recvMaxSize = mUsbEndpointInterruptIn.getMaxPacketSize();
-                ByteBuffer buffer = ByteBuffer.allocate(recvMaxSize);
-                UsbRequest usbRequest = new UsbRequest();
-                usbRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
+
+                // Define a new read usb request to receive data
+                UsbRequest readDataRequest = new UsbRequest();
+                readDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
+                ByteBuffer receiveBuff = ByteBuffer.allocate(BUFF_SIZE_ON_INTERRUPT_ENDPOINT);
+                readDataRequest.setClientData(receiveBuff);
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    usbRequest.queue(buffer);
+                    readDataRequest.queue(receiveBuff);
                 } else {
-                    usbRequest.queue(buffer, recvMaxSize);
+                    readDataRequest.queue(receiveBuff, BUFF_SIZE_ON_INTERRUPT_ENDPOINT);
                 }
-                if (mUsbDeviceConnection.requestWait() == usbRequest) {
-                    byte[] recvData = buffer.array();
-                    Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS,
-                            "receive data (interrupt in, len = " + recvData.length + "): " + ByteUtil.convertHexString(recvData)));
-                    parseReceiveData(recvData);
+
+                UsbRequest usbRequest = mUsbDeviceConnection.requestWait();
+                if (usbRequest == null) {
+                    Log.d(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "receive a null result"));
+                    continue;
                 }
+
+                Object clientData = usbRequest.getClientData();
+
+                if (usbRequest.getEndpoint() == mUsbEndpointInterruptOut) {
+                    // Send Request
+                    if (clientData instanceof BaseRequest) { // Has sent a request data
+                        // Save the send request currently sent.
+                        mSendingRequest = (BaseRequest) clientData;
+                        Log.i(TAG, UsbLogInfo.msg(mSendingRequest.getClass().getSimpleName(), "send request success "));
+                        if (mSendingRequest.getRequestCallback() != null)
+                            mSendingRequest.getRequestCallback().onSendSuccess();
+                        continue;
+                    }
+                    // Send Command
+                    if (clientData instanceof WriteAttributeCommand) {
+                        WriteAttributeCommand writeAttributeCommand = (WriteAttributeCommand) clientData;
+                        Log.i(TAG, UsbLogInfo.msg(writeAttributeCommand.getClass().getSimpleName(), "send command success"));
+                        if (writeAttributeCommand.getWriteAttributeCommandCallback() != null)
+                            writeAttributeCommand.getWriteAttributeCommandCallback().onSendSuccess();
+                        continue;
+                    }
+                }
+
+                if (usbRequest.getEndpoint() == mUsbEndpointInterruptIn) {
+                    if (clientData != null) {
+                        byte[] receiveData = ((ByteBuffer) clientData).array();
+                        byte reportIdByte = receiveData[0];
+                        boolean checkRet = UsbConfig.checkReportID(reportIdByte);
+                        if (checkRet) {
+                            int real_message_length = receiveData[1] & 0x0FF;
+                            byte[] realData = new byte[real_message_length + BaseRequest.LENGTH_WRITE_REQUEST_HEAD];
+                            System.arraycopy(receiveData, 0, realData, 0, realData.length);
+                            Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS,
+                                    "receive data (interrupt in, Verified, len = " + realData.length + "): " + ByteUtil.convertHexString(realData)));
+                            parseResponseData(realData);
+                        } else {
+                            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS,
+                                    "receive data (interrupt in, Unverified, len = " + receiveData.length + "): " + ByteUtil.convertHexString(receiveData)));
+                        }
+                    }
+                }
+
             }
+
             Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "interrupt interrupt in listening thread"));
         }
     }
@@ -751,7 +797,7 @@ public class LocalUsbConnector {
      *
      * @param receiveData Data returned by the server.
      */
-    private void parseReceiveData(byte[] receiveData) {
+    private void parseResponseData(byte[] receiveData) {
         byte reportID = receiveData[0];
         switch (reportID) {
             case UsbConfig.REPORT_ID_16:
@@ -779,20 +825,16 @@ public class LocalUsbConnector {
             case AttPduOpcodeDefine.WRITE_RESPONSE:
             case AttPduOpcodeDefine.READ_RESPONSE:
             case AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE:
-                if (mSendingRequest != null) {
-                    String logInfoType = mSendingRequest.getClass().getSimpleName();
-                    Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
-                    mSendingRequest.parseResponse(responseData);
-                    // int parseResult = mSendingRequest.getParseResult();
-                } else {
-                    Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse att pdu failed, Internal status exception"));
-                }
+                parseAttResponseMessageFromServer(responseData);
                 break;
             case AttPduOpcodeDefine.HANDLE_VALUE_INDICATION:
-                parseIndicationMessageFromServer(responseData);
+                parseAttIndicationMessageFromServer(responseData);
                 break;
             case AttPduOpcodeDefine.HANDLE_VALUE_NOTIFICATION:
-                parseNotificationMessageFromServer(responseData);
+                parseAttNotificationMessageFromServer(responseData);
+                break;
+            case AttPduOpcodeDefine.ERROR_RESPONSE:
+                parseAttErrorHandlingMessageFromServer(responseData);
                 break;
             default:
                 break;
@@ -800,30 +842,105 @@ public class LocalUsbConnector {
     }
 
     private void parseUsbCmdResponseData(byte[] responseData) {
+        byte vendorEventCode = responseData[2]; // byte[2] = Vendor Event Code
+        switch (vendorEventCode) {
+            case UsbCmdVendorEventCodeDefine.VENDOR_EVENT:
+                parseUsbVendorEventMessageFromServer(responseData);
+                break;
+            case UsbCmdVendorEventCodeDefine.COMMAND_COMPLETE_EVENT:
+                parseUsbCommandCompleteEventMessageFromServer(responseData);
+                break;
+            default:
+                break;
+        }
+    }
+
+    //<editor-fold desc="Parse Att PDU Sub">
+    private void parseAttResponseMessageFromServer(byte[] responseData) {
         if (mSendingRequest != null) {
             String logInfoType = mSendingRequest.getClass().getSimpleName();
-            Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received a server response"));
+            Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received server response"));
             mSendingRequest.parseResponse(responseData);
+            notifySendNextRequest();
+        } else {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse received att pdu failed, Internal status exception"));
+        }
+    }
+
+    private void parseAttErrorHandlingMessageFromServer(byte[] responseData) {
+        if (mSendingRequest != null) {
+            ByteBuffer buffer = ByteBuffer.wrap(responseData);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            byte responseOpcode = responseData[2];
+            byte error_request_opcode = buffer.get(3);
+            short error_att_handle = buffer.getShort(4);
+            byte error_code = buffer.get(6);
+            if (mSendingRequest.getRequestCallback() != null)
+                mSendingRequest.getRequestCallback().onReceiveFailed(responseOpcode, error_request_opcode, error_att_handle, error_code);
+            notifySendNextRequest();
+        } else {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse error att pdu failed, Internal status exception"));
+        }
+    }
+
+    private void parseAttIndicationMessageFromServer(byte[] indicationData) {
+        if (mServerIndicationCallbacks == null) return;
+        for (OnReceiveServerIndicationCallback callback : mServerIndicationCallbacks) {
+            callback.onReceiveServerIndication(indicationData);
+        }
+    }
+
+    private void parseAttNotificationMessageFromServer(byte[] notificationData) {
+        if (mOnUsbDeviceStatusChangeCallbacks == null) return;
+        ByteBuffer buffer = ByteBuffer.wrap(notificationData);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        short att_handle = buffer.getShort(3);
+        int messageLength = buffer.get(1) & 0x0FF;
+        int att_value_length = messageLength - AttPduParamLengthDefine.LENGTH_ATT_OPCODE - AttPduParamLengthDefine.LENGTH_ATT_HANDLE;
+        byte[] att_value = new byte[att_value_length];
+        System.arraycopy(notificationData, 5, att_value, 0, att_value_length);
+
+        for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
+            callback.onReceiveHandleValueNotification(att_handle, att_value);
+        }
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="Parse Usb Command data">
+    private void parseUsbVendorEventMessageFromServer(byte[] responseData) {
+        byte vendorEventSubCode = responseData[4]; // Vendor Event Sub code
+        boolean btConnectionStatus = false;
+        if (vendorEventSubCode == UsbCmdVendorEventSubCodeDefine.BLUETOOTH_CONNECTED_CODE) {
+            btConnectionStatus = true;
+        } else if (vendorEventSubCode == UsbCmdVendorEventSubCodeDefine.BLUETOOTH_DISCONNECTED_CODE) {
+            btConnectionStatus = false;
+        }
+        if (mOnUsbDeviceStatusChangeCallbacks == null) return;
+        for (OnUsbDeviceStatusChangeCallback callback : mOnUsbDeviceStatusChangeCallbacks) {
+            callback.onDeviceConnectionStatusHasChanged(btConnectionStatus);
+        }
+    }
+
+    private void parseUsbCommandCompleteEventMessageFromServer(byte[] responseData) {
+        if (mSendingRequest != null) {
+            String logInfoType = mSendingRequest.getClass().getSimpleName();
+            Log.i(TAG, UsbLogInfo.msg(logInfoType, "has received server response"));
+            mSendingRequest.parseResponse(responseData);
+            notifySendNextRequest();
             // int parseResult = mSendingRequest.getParseResult();
         } else {
             Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "parse usb cmd failed, Internal status exception"));
         }
     }
+    //</editor-fold>
 
-    private void parseIndicationMessageFromServer(byte[] indicationData) {
-        if (mServerIndicationCallbacks != null) {
-            for (OnReceiveServerIndicationCallback callback : mServerIndicationCallbacks) {
-                callback.onReceiveServerIndication(indicationData);
-            }
-        }
-    }
-
-    private void parseNotificationMessageFromServer(byte[] notificationData) {
-        if (mServerNotificationCallbacks != null) {
-            for (OnReceiveServerNotificationCallback callback : mServerNotificationCallbacks) {
-                callback.onReceiveServerNotification(notificationData);
-            }
-        }
+    /**
+     * Call this method to notify the {@link SendRequestThread} to send the next request in the send queue.
+     */
+    private void notifySendNextRequest() {
+        mSendNextRequestLock.lock();
+        mSendNextRequestCondition.signal();
+        mSendNextRequestLock.unlock();
     }
 
     /**
@@ -961,117 +1078,71 @@ public class LocalUsbConnector {
     }
 
 
-    private class writeRequest2InterruptOutThread extends Thread {
-
-        private BaseRequest mBaseRequest;
-
-        writeRequest2InterruptOutThread(BaseRequest baseRequest) {
-            this.mBaseRequest = baseRequest;
-            this.setName("writeRequest2InterruptOutThread");
+    /**
+     * Call this method to write data to the interrupt out endpoint of the USB.
+     *
+     * @param sendRequest request object to send to usb.
+     * @see UsbError#CODE_USB_CONNECTION_NOT_ESTABLISHED
+     * @see UsbError#CODE_USB_SEND_DATA_FAILED
+     */
+    private void writeData2InterruptOutEndpoint(BaseRequest sendRequest) {
+        if (mUsbDeviceConnection == null) {
+            Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "write interrupt out failed, connection has not been established"));
+            return;
         }
 
-        @Override
-        public void run() {
-            super.run();
-            writeRequest2InterruptOutEndpoint(mBaseRequest);
-            mSendNextRequestLock.lock();
-            mSendNextRequestCondition.signal();
-            mSendNextRequestLock.unlock();
+        byte[] sendData = sendRequest.getSendData();
+        BaseRequestCallback requestCallback = sendRequest.getRequestCallback();
+
+        /* Send Buff Length Origin byte Length */
+       /* ByteBuffer sendBuffer = ByteBuffer.wrap(sendData);
+        sendBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        UsbRequest writeDataRequest = new UsbRequest();
+        writeDataRequest.setClientData(sendRequest);
+        writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
+
+        boolean writeData2QueueRet;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            writeData2QueueRet = writeDataRequest.queue(sendBuffer);
+        } else {
+            writeData2QueueRet = writeDataRequest.queue(sendBuffer, sendData.length);
         }
 
-        /**
-         * Call this method to write data to the interrupt out endpoint of the USB.
-         *
-         * @param sendRequest request object to send to usb.
-         * @see UsbError#CODE_USB_CONNECTION_NOT_ESTABLISHED
-         * @see UsbError#CODE_USB_SEND_DATA_FAILED
-         */
-        void writeRequest2InterruptOutEndpoint(BaseRequest sendRequest) {
-            if (mUsbDeviceConnection == null) {
-                Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "write interrupt out failed, connection has not been established"));
-                return;
-            }
-
-            mWriteData2InterruptOutEndpointLock.lock();
-            try {
-                byte[] writeData = sendRequest.getSendData();
-                BaseRequestCallback requestCallback = sendRequest.getRequestCallback();
-
-                ByteBuffer writeBuffer = ByteBuffer.wrap(writeData);
-                writeBuffer.order(ByteOrder.LITTLE_ENDIAN);
-                UsbRequest writeDataRequest = new UsbRequest();
-                writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
-
-                boolean writeData2QueueRet;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    writeData2QueueRet = writeDataRequest.queue(writeBuffer);
-                } else {
-                    writeData2QueueRet = writeDataRequest.queue(writeBuffer, writeData.length);
-                }
-
-                // true if the queueing operation succeeded, false if the queueing operation failed.
-                if (!writeData2QueueRet) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "write request data to queue failed");
-                    if (requestCallback != null) requestCallback.onSendFailed(UsbError.CODE_WRITE_REQUEST_TO_QUEUE_FAILED);
-                    return;
-                }
-
-                UsbRequest writeUsbRequest = mUsbDeviceConnection.requestWait();
-                if (!writeUsbRequest.equals(writeDataRequest)) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "write request data to usb failed");
-                    if (requestCallback != null) requestCallback.onSendFailed(UsbError.CODE_WRITE_REQUEST_WAIT_FAILED);
-                    return;
-                }
-
-                // Save the write request currently sent.
-                mSendingRequest = sendRequest;
-                String writeDataHexStr = ByteUtil.convertHexString(writeData);
-                String logInfoType = sendRequest.getClass().getSimpleName();
-                Log.i(TAG, UsbLogInfo.msg(logInfoType, "send request hex string: " + writeDataHexStr));
-                if (requestCallback != null) requestCallback.onSendSuccess();
-
-                // Define a new usb request to receive data
-                UsbRequest readDataRequest = new UsbRequest();
-                readDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptIn);
-                ByteBuffer readBuff = ByteBuffer.allocate(RECEIVE_BUFF_SIZE_ON_INTERRUPT_OUT);
-
-                boolean readData2QueueRet;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    readData2QueueRet = readDataRequest.queue(readBuff);
-                } else {
-                    readData2QueueRet = readDataRequest.queue(readBuff, RECEIVE_BUFF_SIZE_ON_INTERRUPT_OUT);
-                }
-
-                // true if the queueing operation succeeded, false if the queueing operation failed.
-                if (!readData2QueueRet) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "read request data to queue failed");
-                    if (requestCallback != null) requestCallback.onReceiveTimeout();
-                    return;
-                }
-
-                UsbRequest readUsbRequest = mUsbDeviceConnection.requestWait();
-                if (!readUsbRequest.equals(readDataRequest)) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "read request data to usb failed");
-                    if (requestCallback != null) requestCallback.onReceiveTimeout();
-                    return;
-                }
-
-                byte[] receiveData = readBuff.array();
-                int real_message_length = receiveData[1] & 0x0FF;
-                byte[] realData = new byte[real_message_length + BaseRequest.LENGTH_WRITE_REQUEST_HEAD];
-                System.arraycopy(receiveData, 0, realData, 0, realData.length);
-                Log.i(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS,
-                        "receive data (interrupt in, len = " + receiveData.length + "): " + ByteUtil.convertHexString(realData)));
-                parseReceiveData(receiveData);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                mWriteData2InterruptOutEndpointLock.unlock();
-            }
-
+        // true if the queueing operation succeeded, false if the queueing operation failed.
+        if (!writeData2QueueRet) {
+            Log.e(TAG, UsbLogInfo.msg(sendRequest.getClass().getSimpleName(), "write request data to queue failed"));
+            if (requestCallback != null) requestCallback.onSendFailed(UsbError.CODE_WRITE_REQUEST_TO_QUEUE_FAILED);
         }
 
+        String writeDataHexStr = ByteUtil.convertHexString(sendRequest.getSendData());
+        Log.i(TAG, UsbLogInfo.msg(sendRequest.getClass().getSimpleName(), "send request hex string: " + writeDataHexStr));*/
+
+        /* Send Buff Length is 255 byte */
+        byte[] completeData = new byte[BUFF_SIZE_ON_INTERRUPT_ENDPOINT];
+        System.arraycopy(sendData, 0, completeData, 0, sendData.length);
+
+        ByteBuffer sendBuffer = ByteBuffer.wrap(completeData);
+        sendBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        UsbRequest writeDataRequest = new UsbRequest();
+        writeDataRequest.setClientData(sendRequest);
+        writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
+
+        boolean writeData2QueueRet;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            writeData2QueueRet = writeDataRequest.queue(sendBuffer);
+        } else {
+            writeData2QueueRet = writeDataRequest.queue(sendBuffer, completeData.length);
+        }
+
+        // true if the queueing operation succeeded, false if the queueing operation failed.
+        if (!writeData2QueueRet) {
+            Log.e(TAG, UsbLogInfo.msg(sendRequest.getClass().getSimpleName(), "write request data to queue failed"));
+            if (requestCallback != null)
+                requestCallback.onSendFailed(UsbError.CODE_WRITE_REQUEST_TO_QUEUE_FAILED);
+        }
+
+        String writeDataHexStr = ByteUtil.convertHexString(completeData);
+        Log.i(TAG, UsbLogInfo.msg(sendRequest.getClass().getSimpleName(), "send request hex string: " + writeDataHexStr));
     }
 
 
@@ -1097,8 +1168,7 @@ public class LocalUsbConnector {
                     BaseRequestCallback requestCallback = sendRequest.getRequestCallback();
 
                     // send request message on interrupt out.
-                    writeRequest2InterruptOutThread writeRequestThread = new writeRequest2InterruptOutThread(sendRequest);
-                    writeRequestThread.start();
+                    writeData2InterruptOutEndpoint(sendRequest);
 
                     // Check if the response times out
                     boolean noTimeout = mSendNextRequestCondition.await(MAXIMUM_RESPONSE_TIME_WHEN_SEND_REQUEST, TimeUnit.SECONDS);
@@ -1158,53 +1228,70 @@ public class LocalUsbConnector {
             writeCommand2InterruptOutEndpoint(mWriteAttributesCommand);
         }
 
-        void writeCommand2InterruptOutEndpoint(WriteAttributeCommand command) {
+        private void writeCommand2InterruptOutEndpoint(WriteAttributeCommand command) {
             if (mUsbDeviceConnection == null) {
                 Log.e(TAG, UsbLogInfo.msg(UsbLogInfo.TYPE_RUNNING_TIPS, "write command to interrupt out failed, connection has not been established"));
                 return;
             }
 
-            mWriteData2InterruptOutEndpointLock.lock();
-            try {
-                byte[] writeData = command.getSendData();
-                WriteAttributeCommandCallback writeCommandCallback = command.getWriteAttributeCommandCallback();
+            byte[] writeData = command.getSendData();
+            WriteAttributeCommandCallback writeCommandCallback = command.getWriteAttributeCommandCallback();
 
-                ByteBuffer writeBuffer = ByteBuffer.wrap(writeData);
-                writeBuffer.order(ByteOrder.LITTLE_ENDIAN);
-                UsbRequest writeDataRequest = new UsbRequest();
-                writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
+            /*  */
+            /*ByteBuffer writeBuffer = ByteBuffer.wrap(writeData);
+            writeBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            UsbRequest writeDataRequest = new UsbRequest();
+            writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
 
-                boolean writeData2QueueRet;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    writeData2QueueRet = writeDataRequest.queue(writeBuffer);
-                } else {
-                    writeData2QueueRet = writeDataRequest.queue(writeBuffer, writeData.length);
-                }
-
-                // true if the queueing operation succeeded, false if the queueing operation failed.
-                if (!writeData2QueueRet) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "write command data to queue failed");
-                    if (writeCommandCallback != null) writeCommandCallback.onSendFailed(UsbError.CODE_WRITE_COMMAND_TO_QUEUE_FAILED);
-                    return;
-                }
-
-                UsbRequest writeUsbRequest = mUsbDeviceConnection.requestWait();
-                if (!writeUsbRequest.equals(writeDataRequest)) {
-                    Log.e(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "write command data to usb failed");
-                    if (writeCommandCallback != null) writeCommandCallback.onSendFailed(UsbError.CODE_WRITE_COMMAND_WAIT_FAILED);
-                    return;
-                }
-
-                String writeDataHexStr = ByteUtil.convertHexString(writeData);
-                String logInfoType = command.getClass().getSimpleName();
-                Log.i(TAG, UsbLogInfo.msg(logInfoType, "send command hex string: " + writeDataHexStr));
-                if (writeCommandCallback != null) writeCommandCallback.onSendSuccess();
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                mWriteData2InterruptOutEndpointLock.unlock();
+            boolean writeData2QueueRet;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                writeData2QueueRet = writeDataRequest.queue(writeBuffer);
+            } else {
+                writeData2QueueRet = writeDataRequest.queue(writeBuffer, writeData.length);
             }
+
+            // true if the queueing operation succeeded, false if the queueing operation failed.
+            String logType = WriteAttributeCommand.class.getSimpleName();
+
+            if (!writeData2QueueRet) {
+                Log.e(TAG, UsbLogInfo.msg(logType, "write command data to queue failed"));
+                if (writeCommandCallback != null) writeCommandCallback.onSendFailed(UsbError.CODE_WRITE_COMMAND_TO_QUEUE_FAILED);
+                return;
+            }
+
+
+            String writeDataHexStr = ByteUtil.convertHexString(writeData);
+            Log.i(TAG, UsbLogInfo.msg(logType, "send command hex string: " + writeDataHexStr));*/
+
+            /* Limit the sent buff length to 255 */
+            byte[] writeCompleteData = new byte[BUFF_SIZE_ON_INTERRUPT_ENDPOINT];
+            System.arraycopy(writeData, 0, writeCompleteData, 0, writeData.length);
+
+            ByteBuffer writeBuffer = ByteBuffer.wrap(writeCompleteData);
+            writeBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            UsbRequest writeDataRequest = new UsbRequest();
+            writeDataRequest.setClientData(command);
+            writeDataRequest.initialize(mUsbDeviceConnection, mUsbEndpointInterruptOut);
+
+            boolean writeData2QueueRet;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                writeData2QueueRet = writeDataRequest.queue(writeBuffer);
+            } else {
+                writeData2QueueRet = writeDataRequest.queue(writeBuffer, writeCompleteData.length);
+            }
+
+            // true if the queueing operation succeeded, false if the queueing operation failed.
+            String logType = WriteAttributeCommand.class.getSimpleName();
+
+            if (!writeData2QueueRet) {
+                Log.e(TAG, UsbLogInfo.msg(logType, "write command data to queue failed"));
+                if (writeCommandCallback != null)
+                    writeCommandCallback.onSendFailed(UsbError.CODE_WRITE_COMMAND_TO_QUEUE_FAILED);
+                return;
+            }
+
+            String writeDataHexStr = ByteUtil.convertHexString(writeCompleteData);
+            Log.i(TAG, UsbLogInfo.msg(logType, "send command hex string: " + writeDataHexStr));
         }
 
     }
@@ -1247,14 +1334,14 @@ public class LocalUsbConnector {
 
         // check interrupt in endpoint,
         if (mUsbEndpointInterruptIn != null) {
-            // startListenInterruptInData();
+            startListenInterruptInData();
         }
 
         // check interrupt out endpoint, send Att pdu and usb command data on this endpoint.
         if (mUsbEndpointInterruptOut != null) { // start the thread to receive data from the user
             startReceivingRequestData();
             startReceivingWriteCommandData();
-            Log.d(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "The receive buffer size of interrupt out is " + RECEIVE_BUFF_SIZE_ON_INTERRUPT_OUT);
+            Log.d(TAG, UsbLogInfo.TYPE_RUNNING_TIPS + "The receive buffer size of interrupt out is " + BUFF_SIZE_ON_INTERRUPT_ENDPOINT);
         }
 
         // check bulk out endpoint, send audio data on this endpoint.

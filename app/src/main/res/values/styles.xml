@@ -8,10 +8,8 @@
         <item name="colorAccent">@color/colorAccent</item>
         <item name="android:windowAnimationStyle">@style/anim_fade</item>
 
-<!--        <item name="android:windowAnimationStyle">@style/ActivitySwitchAnimation</item>-->
-        <!--<item name="android:textColorPrimary">@color/textColorPrimary</item>
+<!--        <item name="android:textColorPrimary">@color/textColorPrimary</item>-->
         <item name="android:windowBackground">@color/windowBackground</item>
-        <item name="android:windowAnimationStyle">@style/ActivitySwitchAnimation</item>-->
     </style>
 
     <style name="AppTheme.NoActionBar" parent="AppTheme">

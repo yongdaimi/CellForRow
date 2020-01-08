@@ -49,4 +49,5 @@ public abstract class BaseUsbRequest extends BaseRequest {
         this.response_opcode = buffer.getShort(5);
         this.status_code = buffer.get(7);
     }
+
 }

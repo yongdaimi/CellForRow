@@ -150,10 +150,6 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
                 getReadByTypeRequestCallback().onReadSuccess(handle_value_pair_length & 0x0FF, attribute_data_list);
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
-        } else {
-            if (getReadByTypeRequestCallback() != null) {
-                getReadByTypeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
-            }
         }
     }
 }

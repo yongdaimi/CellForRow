@@ -1,10 +1,10 @@
 package com.realsil.sdk.core.usb.connector.cmd.impl;
 
+import android.os.ParcelUuid;
 import com.realsil.sdk.core.usb.UsbGattCharacteristic;
 import com.realsil.sdk.core.usb.connector.BaseRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdParamLengthDefine;
-import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.ReadDongleConfigRequestCallback;
 
 import java.nio.ByteBuffer;
@@ -112,7 +112,8 @@ public class ReadDongleConfigRequest extends BaseUsbRequest {
                 startIndex += uuid_value.length;
                 short att_handle = buffer.getShort(startIndex);
                 startIndex += LENGTH_CHARACTERISTIC_ATT_HANDLE;
-                UUID uuid = UUID.nameUUIDFromBytes(uuid_value);
+
+                UUID uuid = parseUuidFrom(uuid_value).getUuid();
                 UsbGattCharacteristic usbGattCharacteristic = new UsbGattCharacteristic(uuid, att_handle, 0, 0);
                 list.add(usbGattCharacteristic);
             }
@@ -127,6 +128,39 @@ public class ReadDongleConfigRequest extends BaseUsbRequest {
         }
     }
 
+    private static final ParcelUuid BASE_UUID =
+            ParcelUuid.fromString("00000000-0000-1000-8000-00805F9B34FB");
+
+    private static ParcelUuid parseUuidFrom(byte[] uuidBytes) {
+        if (uuidBytes == null) {
+            throw new IllegalArgumentException("uuidBytes cannot be null");
+        }
+        int length = uuidBytes.length;
+        if (length != UUID_TYPE_VALUE_16_BIT && length != UUID_TYPE_VALUE_32_BIT &&
+                length != UUID_TYPE_VALUE_128_BIT) {
+            throw new IllegalArgumentException("uuidBytes length invalid - " + length);
+        }
+
+        if (length == UUID_TYPE_VALUE_128_BIT) {
+            ByteBuffer buf = ByteBuffer.wrap(uuidBytes).order(ByteOrder.LITTLE_ENDIAN);
+            long msb = buf.getLong(8);
+            long lsb = buf.getLong(0);
+            return new ParcelUuid(new UUID(msb, lsb));
+        }
+        long shortUuid;
+        if (length == UUID_TYPE_VALUE_16_BIT) {
+            shortUuid = uuidBytes[0] & 0xFF;
+            shortUuid += (uuidBytes[1] & 0xFF) << 8;
+        } else {
+            shortUuid = uuidBytes[0] & 0xFF;
+            shortUuid += (uuidBytes[1] & 0xFF) << 8;
+            shortUuid += (uuidBytes[2] & 0xFF) << 16;
+            shortUuid += (uuidBytes[3] & 0xFF) << 24;
+        }
+        long msb = BASE_UUID.getUuid().getMostSignificantBits() + (shortUuid << 32);
+        long lsb = BASE_UUID.getUuid().getLeastSignificantBits();
+        return new ParcelUuid(new UUID(msb, lsb));
+    }
 
     private static byte[] getUUIDValueLength(int uuidType) {
         byte[] uuid_value = null;

@@ -73,8 +73,8 @@ public class QueryBTConnectStateRequest extends BaseUsbRequest {
         if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             byte connectStatus = responseData[8];
             if (getQueryBTConnectStateRequestCallback() != null) {
-                getQueryBTConnectStateRequestCallback().onReceiveConnectState(connectStatus,
-                        connectStatus == BT_HAS_CONNECTED ? UsbGatt.STATE_CONNECTED : connectStatus);
+                getQueryBTConnectStateRequestCallback().onReceiveConnectState(STATUS_SUCCESS,
+                        connectStatus == BT_HAS_CONNECTED ? UsbGatt.STATE_CONNECTED : UsbGatt.STATE_DISCONNECTED);
             }
         } else {
             if (getQueryBTConnectStateRequestCallback() != null) {

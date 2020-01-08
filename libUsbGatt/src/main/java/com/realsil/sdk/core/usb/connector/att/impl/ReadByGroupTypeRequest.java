@@ -153,10 +153,6 @@ public class ReadByGroupTypeRequest extends BaseAttributeRequest {
                 getReadByGroupTypeRequestCallback().onReadSuccess(attribute_data_length & 0x0FF, attribute_data_list);
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
-        } else {
-            if (getReadByGroupTypeRequestCallback() != null) {
-                getReadByGroupTypeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
-            }
         }
     }
 

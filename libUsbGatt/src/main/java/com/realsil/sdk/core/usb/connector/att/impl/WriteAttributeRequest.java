@@ -37,6 +37,22 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
         this.mAttValue = attValue;
     }
 
+    private byte xReportID = 1;
+
+    /**
+     * Use this constructor to create a Write Attributes Request.
+     *
+     * @param attHandle The handler of the attribute to be written.
+     * @param attValue  The value to be written to the attribute.
+     * @param reportID The report id of send message.
+     */
+    public WriteAttributeRequest(short attHandle, byte[] attValue, byte reportID) {
+        this.mAttHandle = attHandle;
+        this.mAttValue = attValue;
+        this.xReportID = reportID;
+    }
+
+
     /**
      * Add a callback interface to listen the status of data sent by the client to the server
      *
@@ -95,10 +111,6 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
                 getWriteAttributeRequestCallback().onWriteSuccess();
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
-        } else {
-            if (getWriteAttributeRequestCallback() != null) {
-                getWriteAttributeRequestCallback().onReceiveFailed(response_opcode, error_request_opcode, error_att_handle, error_code);
-            }
         }
     }
 

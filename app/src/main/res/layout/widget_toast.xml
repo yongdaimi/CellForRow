@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@android:id/message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:background="#E620222C"
+        android:gravity="center"
+        android:minHeight="40dip"
+        android:paddingLeft="30dip"
+        android:paddingRight="30dip"
+        android:textColor="@android:color/white"
+        android:textSize="13sp" />
+
+</LinearLayout>
