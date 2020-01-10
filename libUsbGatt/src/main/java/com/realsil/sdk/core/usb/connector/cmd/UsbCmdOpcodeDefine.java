@@ -23,5 +23,9 @@ public interface UsbCmdOpcodeDefine {
      * 0xFC20 = HCI Vendor Download Command
      */
     short VENDOR_DOWNLOAD_COMMAND        = (short) 0xFC20;
+    /**
+     * 0x0001 = Read Local Version Information
+     */
+    short READ_LOCAL_VERSION_INFORMATION = (short) 0x0001;
 
 }

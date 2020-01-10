@@ -4,8 +4,6 @@ import java.util.Locale;
 
 public class ByteUtils {
 
-
-
     public static String convertByteArr2String(byte[] bArr) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < bArr.length; i++) {
@@ -13,6 +11,5 @@ public class ByteUtils {
         }
         return builder.toString();
     }
-
 
 }

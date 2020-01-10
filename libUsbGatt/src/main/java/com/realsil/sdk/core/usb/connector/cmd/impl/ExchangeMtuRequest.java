@@ -36,7 +36,7 @@ public class ExchangeMtuRequest extends BaseUsbRequest {
 
     @Override
     public void setMessageLength() {
-        this.mSendMessageLength = UsbCmdParamLengthDefine.LENGTH_USB_CMD_OPCODE + UsbCmdParamLengthDefine.LENGTH_USB_CMD_NON_PARAM;
+        this.mSendMessageLength = UsbCmdParamLengthDefine.LENGTH_USB_CMD_OPCODE_FIELD + UsbCmdParamLengthDefine.LENGTH_PARAMETER_TOTAL_LEN_FIELD;
     }
 
     @Override

@@ -6,13 +6,13 @@ package com.realsil.sdk.core.usb.connector.cmd;
 public interface UsbCmdParamLengthDefine {
 
     /**
-     * The length of the Usb Command Opcode in usb command message (2 Octets).
+     * The length of the Usb Command Opcode Field in usb command message (2 Octets).
      */
-    int LENGTH_USB_CMD_OPCODE = 2;
-
+    int LENGTH_USB_CMD_OPCODE_FIELD      = 2;
     /**
-     * If there are no parameters, set the parameters to 0x00 and the length to 1
+     * The length of the Parameter Total Len Field in usb command message. (1 Octets)
      */
-    int LENGTH_USB_CMD_NON_PARAM = 1;
+    int LENGTH_PARAMETER_TOTAL_LEN_FIELD = 1;
+
 
 }
