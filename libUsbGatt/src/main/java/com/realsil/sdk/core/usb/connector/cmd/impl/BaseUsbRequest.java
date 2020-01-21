@@ -38,16 +38,20 @@ public abstract class BaseUsbRequest extends BaseRequest {
     public void createRequest() {
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mSendMessageLength;
         this.mSendData = new byte[mSendDataLength];
-        this.mReportID = UsbConfig.REPORT_ID_4;
+        this.mSendReportID = UsbConfig.REPORT_ID_4;
     }
 
     @Override
     public void parseResponse(byte[] responseData) {
-        this.mReceiveMessageLength = responseData[1] & 0x0FF;
-        ByteBuffer buffer = ByteBuffer.wrap(responseData);
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
-        this.response_opcode = buffer.getShort(5);
-        this.status_code = buffer.get(7);
+        mReceiveReportID = responseData[0];
+        // Make sure the report id sent and received are consistent.
+        if (mReceiveReportID == mSendReportID) {
+            mReceiveMessageLength = responseData[1] & 0x0FF;
+            ByteBuffer buffer = ByteBuffer.wrap(responseData);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            response_opcode = buffer.getShort(5);
+            status_code = buffer.get(7);
+        }
     }
 
 }

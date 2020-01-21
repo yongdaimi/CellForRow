@@ -71,7 +71,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
 
         /// Put Protocol Header
         // ReportID
-        byteBuffer.put(mReportID);
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -85,7 +85,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
+        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
             short server_mtu_size = 0;
             ByteBuffer buffer = ByteBuffer.wrap(response);
             buffer.order(ByteOrder.LITTLE_ENDIAN);

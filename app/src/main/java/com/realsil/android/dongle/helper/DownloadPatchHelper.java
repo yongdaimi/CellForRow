@@ -1,5 +1,6 @@
 package com.realsil.android.dongle.helper;
 
+import com.realsil.android.dongle.entity.SendPacketInfo;
 import com.realsil.android.dongle.util.ByteUtils;
 import com.realsil.android.dongle.util.LogX;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
@@ -9,8 +10,6 @@ import com.realsil.sdk.core.usb.connector.cmd.impl.VendorDownloadCommand;
 import java.math.BigDecimal;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Use this class to complete specific patch packet sending actions.
@@ -22,11 +21,7 @@ public class DownloadPatchHelper {
 
     private static final String TAG = DownloadPatchHelper.class.getSimpleName();
 
-    private ArrayBlockingQueue<byte[]> mSendingQueue;
-
-    private ReentrantLock mReentrantLock = new ReentrantLock();
-
-    private Condition mSendNextPacketCondition = mReentrantLock.newCondition();
+    private ArrayBlockingQueue<SendPacketInfo> mSendingQueue;
 
     private ReadPacketThread mReadPacketThread;
     private SendPacketThread mSendPacketThread;
@@ -34,14 +29,22 @@ public class DownloadPatchHelper {
     private byte[] mPatchCodeArray;
     private int    mPatchCodeTotalLength;
 
-    private static final int MAX_READ_LENGTH_ONCE  = 200;
+    private static final int MAX_SEND_LENGTH_ONCE  = 200;
     private static final int MAX_LENGTH_SEND_QUEUE = 1;
 
-    private static final int MAX_SEQUENCE_NUMBER_IN_PACKET_INDEX = 127;
+    private static final int MAX_INDEX_IN_SEND_PACKET = 127;
 
     private static final int LAST_PACKET_SIGN_BIT_VALUE = 1;
 
-    private volatile boolean mStartSendNextPacket = false;
+    private volatile boolean mDownloadPatchStarted = false;
+
+    public static final int DOWNLOAD_FAILED_RECEIVE_TIMEOUT = -500;
+    public static final int DOWNLOAD_FAILED_RECEIVE_ERROR   = -501;
+
+    private int mSentByteNum = 0;
+    private int mSendPercent = 0;
+
+    private final Object mLock = new Object();
 
     private OnDownloadStatusChangeListener mOnDownloadStatusChangeListener;
 
@@ -52,7 +55,7 @@ public class DownloadPatchHelper {
     }
 
     public void startDownloadPatch() {
-        mStartSendNextPacket = true;
+        mDownloadPatchStarted = true;
         if (mReadPacketThread == null) {
             mReadPacketThread = new ReadPacketThread();
             mReadPacketThread.start();
@@ -72,7 +75,7 @@ public class DownloadPatchHelper {
             mSendPacketThread.interrupt();
             mSendPacketThread = null;
         }
-        mStartSendNextPacket = false;
+        mDownloadPatchStarted = false;
     }
 
     private class ReadPacketThread extends Thread {
@@ -84,41 +87,51 @@ public class DownloadPatchHelper {
             int readOffset = 0;
             int remainLength = mPatchCodeTotalLength;
 
-            while (remainLength > 0 && mStartSendNextPacket) {
+            while (remainLength > 0 && mDownloadPatchStarted) {
+                byte[] sendData;
+                SendPacketInfo sendPacketInfo;
 
-                byte[] sendPacket = null;
-                if (remainLength > MAX_READ_LENGTH_ONCE) {
-                    sendPacket = new byte[MAX_READ_LENGTH_ONCE];
+                if (remainLength > MAX_SEND_LENGTH_ONCE) {
+                    sendData = new byte[MAX_SEND_LENGTH_ONCE];
+                    sendPacketInfo = new SendPacketInfo(false, sendData);
                 } else {
-                    sendPacket = new byte[remainLength];
+                    sendData = new byte[remainLength];
+                    sendPacketInfo = new SendPacketInfo(true, sendData);
                 }
 
-                System.arraycopy(mPatchCodeArray, readOffset, sendPacket, 0, sendPacket.length);
-                LogX.i(TAG, "extra packet: " + ByteUtils.convertByteArr2String(sendPacket));
+                System.arraycopy(mPatchCodeArray, readOffset, sendData, 0, sendData.length);
+                LogX.i(TAG, "extra packet: " + ByteUtils.convertByteArr2String(sendData));
 
                 try {
-                    mSendingQueue.put(sendPacket);
+                    mSendingQueue.put(sendPacketInfo);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     break;
                 }
                 // Update remain length of the patch code array and set a new value to readOffset.
-                remainLength -= sendPacket.length;
-                readOffset += sendPacket.length;
+                remainLength -= sendData.length;
+                readOffset += sendData.length;
 
+                synchronized (mLock) {
+                    try {
+                        mLock.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
 
-            // All packet sent completed
-            mStartSendNextPacket = false;
+            // All packet sent completed if the remainLength is a negative value.
+            mDownloadPatchStarted = false;
         }
     }
 
     private class SendPacketThread extends Thread {
 
-        private AtomicInteger mAtomicInteger = new AtomicInteger();
+        private AtomicInteger mPacketIndexValue = new AtomicInteger();
 
         // Number of bytes has sent.
-        private int mSentByteNums = 0;
+        private int mSentByteNum = 0;
 
         @Override
         public void run() {
@@ -127,17 +140,21 @@ public class DownloadPatchHelper {
                 mOnDownloadStatusChangeListener.onDownloadStarted();
             }
             // Start the process of sending packets
-            while (mStartSendNextPacket) {
+            while (mDownloadPatchStarted) {
                 // If the index of the sent data packet is greater than 127, reset the index
                 // value to 0
-                if (mAtomicInteger.intValue() > MAX_SEQUENCE_NUMBER_IN_PACKET_INDEX) {
-                    mAtomicInteger.set(0);
+                // TODO: 2020/1/14 max value num need to calculate
+                if (mPacketIndexValue.intValue() > MAX_INDEX_IN_SEND_PACKET) {
+                    mPacketIndexValue.set(0);
                 }
 
                 // Extra a data packet from blocking queue.
-                byte[] sendPacket = null;
                 try {
-                    sendPacket = mSendingQueue.take();
+                    SendPacketInfo sendPacketInfo = mSendingQueue.take();
+                    sendPacketInfo.setSendIndex((byte) mPacketIndexValue.intValue());
+                    new VendorDownloadThread(sendPacketInfo).start();
+                    // If the data packet is sent, add 1 to the original index value.
+                    mPacketIndexValue.incrementAndGet();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     if (mOnDownloadStatusChangeListener != null) {
@@ -146,73 +163,81 @@ public class DownloadPatchHelper {
                     break;
                 }
 
-                // If the length of the sent packet is not equal to 252, it means that it is the
-                // last data packet.
-                boolean isLastPacket = sendPacket.length != MAX_READ_LENGTH_ONCE;
+            }
+        }
+    }
 
-                // Construct a new VendorDownloadCommand to send the packet.
-                VendorDownloadCommand command = new VendorDownloadCommand(isLastPacket,
-                        (byte) mAtomicInteger.intValue(), sendPacket);
-                command.addVendorDownloadCommandCallback(new VendorDownloadCommandCallback() {
-                    @Override
-                    public void onTransferSuccess(byte packetIndex) {
-                        super.onTransferSuccess(packetIndex);
-                        // Notify to send next packet
-                        mReentrantLock.lock();
-                        mSendNextPacketCondition.notify();
-                        mReentrantLock.unlock();
 
-                        int lastPacketSignBit = (packetIndex & 0x80) >>> 7;
+    private class VendorDownloadThread extends Thread {
+
+        private SendPacketInfo mSendPacketInfo;
+
+        VendorDownloadThread(SendPacketInfo sendPacketInfo) {
+            this.mSendPacketInfo = sendPacketInfo;
+        }
+
+        @Override
+        public void run() {
+            super.run();
+            // Construct a new VendorDownloadCommand to send the packet.
+            VendorDownloadCommand command = new VendorDownloadCommand(mSendPacketInfo.isLastPacket(),
+                    mSendPacketInfo.getSendIndex(), mSendPacketInfo.getSendPacketBuff());
+            command.addVendorDownloadCommandCallback(new VendorDownloadCommandCallback() {
+                @Override
+                public void onTransferSuccess(byte packetIndex) {
+                    super.onTransferSuccess(packetIndex);
+                    // Notify to send next packet
+                    synchronized (mLock) {
+                        mLock.notify();
+                        /*int lastPacketSignBit = (packetIndex & 0x80) >>> 7;
                         // If the highest bit of the received index value is 1,it means that the BT controller
                         // has received all the data packets.
                         if (lastPacketSignBit == LAST_PACKET_SIGN_BIT_VALUE && mOnDownloadStatusChangeListener != null) {
+                            reset();
                             mOnDownloadStatusChangeListener.onDownloadCompleted();
+                        }*/
+
+                        mSentByteNum += command.getSentDataBlockLength();
+                        BigDecimal sentBgNum = new BigDecimal(mSentByteNum);
+                        BigDecimal totalBgNum = new BigDecimal(mPatchCodeTotalLength);
+                        double decimalPercent = sentBgNum.divide(totalBgNum, 2, BigDecimal.ROUND_DOWN).doubleValue();
+                        int downloadPercent = (int) (decimalPercent * 100);
+                        if (mOnDownloadStatusChangeListener != null && downloadPercent != mSendPercent) {
+                            mSendPercent = downloadPercent;
+                            mOnDownloadStatusChangeListener.onDownloadProgressChanged(downloadPercent);
                         }
 
-                        mSentByteNums += command.getSentDataBlockLength();
-                        BigDecimal bg = new BigDecimal((float)mSentByteNums / (float) mPatchCodeTotalLength);
-                        float decimalPercent = bg.setScale(2, BigDecimal.ROUND_HALF_UP).floatValue();
-                        int IntegerPercent = (int) (decimalPercent * 100);
-                        if (mOnDownloadStatusChangeListener != null) {
-                            mOnDownloadStatusChangeListener.onDownloadProgressChanged(IntegerPercent);
-                        }
                     }
-
-                    @Override
-                    public void onTransferFail() {
-                        super.onTransferFail();
-                        // If receive an error, end the entire operation.
-                        mReentrantLock.lock();
-                        mStartSendNextPacket = false;
-                        mSendNextPacketCondition.notify();
-                        mReentrantLock.unlock();
-                        if (mOnDownloadStatusChangeListener != null) {
-                            mOnDownloadStatusChangeListener.onDownloadFailed();
-                        }
-                    }
-
-                });
-                LocalUsbConnector.getInstance().sendRequest(command);
-
-                // If one packet is sent, the next packet cannot be sent directly. Need to wait
-                // for the result of the previous packet.
-                mReentrantLock.lock();
-                try {
-                    mSendNextPacketCondition.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    if (mOnDownloadStatusChangeListener != null) {
-                        mOnDownloadStatusChangeListener.onDownloadCanceled();
-                    }
-                    break;
-                } finally {
-                    mReentrantLock.unlock();
                 }
 
-                // If the result of the previous packet is received, then update the sequence number
-                // of the packet next sent
-                mAtomicInteger.incrementAndGet();
-            }
+                @Override
+                public void onTransferFail() {
+                    super.onTransferFail();
+                    synchronized (mLock) {
+                        mLock.notify();
+                        // If receive an error, end the entire operation.
+                        mDownloadPatchStarted = false;
+                        if (mOnDownloadStatusChangeListener != null) {
+                            reset();
+                            mOnDownloadStatusChangeListener.onDownloadFailed(DOWNLOAD_FAILED_RECEIVE_ERROR);
+                        }
+                    }
+                }
+
+                @Override
+                public void onReceiveTimeout() {
+                    super.onReceiveTimeout();
+                    synchronized (mLock) {
+                        mLock.notify();
+                        if (mOnDownloadStatusChangeListener != null) {
+                            reset();
+                            mOnDownloadStatusChangeListener.onDownloadFailed(DOWNLOAD_FAILED_RECEIVE_TIMEOUT);
+                        }
+                    }
+                }
+
+            });
+            LocalUsbConnector.getInstance().sendRequest(command);
         }
     }
 
@@ -222,16 +247,22 @@ public class DownloadPatchHelper {
 
         void onDownloadCanceled();
 
-        void onDownloadFailed();
+        void onDownloadFailed(int errorCode);
 
         void onDownloadCompleted();
 
         void onDownloadProgressChanged(int progress);
     }
 
-
-    public void setOnDownloadStatusChangeListener(OnDownloadStatusChangeListener listener) {
+    public void addOnDownloadStatusChangeListener(OnDownloadStatusChangeListener listener) {
         this.mOnDownloadStatusChangeListener = listener;
+    }
+
+    private void reset() {
+        mReadPacketThread = null;
+        mSendPacketThread = null;
+        mSentByteNum = 0;
+        mSendPercent = 0;
     }
 
 }

@@ -15,7 +15,7 @@
         android:id="@+id/nv_bottom_tab_bar"
         android:layout_width="match_parent"
         android:layout_height="48dip"
-        android:background="@color/windowBackground"
+        android:background="@android:color/white"
         app:elevation="4dip"
         app:menu="@menu/menu_main_bottom_navigation" />
 

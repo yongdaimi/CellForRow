@@ -113,7 +113,8 @@ public class VendorDownloadCommand extends BaseUsbRequest {
 
         /// Put Protocol Header
         // ReportID Note: Report ID = 5 in Download Patch in normal mode
-        byteBuffer.put(UsbConfig.REPORT_ID_5);
+        mSendReportID = UsbConfig.REPORT_ID_5;
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -131,7 +132,7 @@ public class VendorDownloadCommand extends BaseUsbRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         super.parseResponse(responseData);
-        if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
+        if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             byte receivedIndex = responseData[8];
             if (getVendorDownloadCommandCallback() != null) {
                 getVendorDownloadCommandCallback().onTransferSuccess(receivedIndex);

@@ -6,7 +6,7 @@ public abstract class BaseRequest {
     /**
      * The length of the report id field in the sent message (1 Octets).
      */
-    private static  final int LENGTH_REPORT_ID_FIELD   = 1;
+    private static final int LENGTH_REPORT_ID_FIELD   = 1;
     /**
      * The length of the message len field (1 Octets).
      * Note: Does not include the field itself and Report ID.
@@ -36,7 +36,7 @@ public abstract class BaseRequest {
      * The true length of the receive message.
      */
     protected int mReceiveMessageLength;
-    
+
     /**
      * Call this method to set internal opcode code member variables.
      * <p>The opcode will be 2 octet if the request is {@link com.realsil.sdk.core.usb.connector.cmd.impl.BaseUsbRequest}</p>
@@ -65,7 +65,12 @@ public abstract class BaseRequest {
      * Transmission port ID of the data to be transmitted
      * <p>Need to be determined based on the length of the sent data</p>
      */
-    protected byte mReportID;
+    protected byte mSendReportID;
+
+    /**
+     * Report id of the response data received form the server.
+     */
+    protected byte mReceiveReportID;
 
     /**
      * The final message data send to the server.
@@ -82,7 +87,7 @@ public abstract class BaseRequest {
      *
      * @return Data sent to the server.
      */
-    public byte[] getSendData() {
+    byte[] getSendData() {
         return mSendData;
     }
 
@@ -96,7 +101,7 @@ public abstract class BaseRequest {
      *
      * @return A Callback currently for listening to {@link BaseRequestCallback}.
      */
-    public BaseRequestCallback getRequestCallback() {
+    BaseRequestCallback getRequestCallback() {
         return mBaseRequestCallback;
     }
 

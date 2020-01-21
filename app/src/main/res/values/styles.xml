@@ -10,6 +10,7 @@
 
 <!--        <item name="android:textColorPrimary">@color/textColorPrimary</item>-->
         <item name="android:windowBackground">@color/windowBackground</item>
+        <item name="textAllCaps">false</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="AppTheme">

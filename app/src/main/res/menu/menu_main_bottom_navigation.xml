@@ -15,4 +15,11 @@
         android:orderInCategory="1"
         />
 
+    <item
+        android:id="@+id/item_usb_audio_debug"
+        android:icon="@drawable/ic_nav_usb_audio"
+        android:title="@string/nav_bar_audio_debug"
+        android:orderInCategory="2"
+        />
+
 </menu>

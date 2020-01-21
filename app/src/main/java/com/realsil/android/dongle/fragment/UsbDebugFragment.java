@@ -19,7 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.realsil.android.dongle.R;
-import com.realsil.android.dongle.adapter.UsbDebugMsgListAdapter;
+import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
 import com.realsil.android.dongle.base.BaseFragment;
 import com.realsil.android.dongle.entity.UsbMsg;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
@@ -50,7 +50,7 @@ public class UsbDebugFragment extends BaseFragment implements View.OnClickListen
 
     private RecyclerView rv_msg_list;
 
-    private UsbDebugMsgListAdapter mUsbDebugMsgListAdapter;
+    private UsbMsgListAdapter mUsbMsgListAdapter;
 
     private static final String ERROR_MSG_INIT_USB_CONNECTOR   = "setup usb connector failed";
     private static final String ERROR_MSG_SEARCH_USB_DEVICE    = "can not found usb device";
@@ -77,8 +77,8 @@ public class UsbDebugFragment extends BaseFragment implements View.OnClickListen
         rv_msg_list.setLayoutManager(layoutManager);
         rv_msg_list.setHasFixedSize(true);
 
-        mUsbDebugMsgListAdapter = new UsbDebugMsgListAdapter(mContext, new ArrayList<UsbMsg>());
-        rv_msg_list.setAdapter(mUsbDebugMsgListAdapter);
+        mUsbMsgListAdapter = new UsbMsgListAdapter(mContext, new ArrayList<UsbMsg>());
+        rv_msg_list.setAdapter(mUsbMsgListAdapter);
 
         btn_setup_usb_connector = findViewById(R.id.btn_setup_usb_connector);
         btn_send_att_pdu = findViewById(R.id.btn_send_att_pdu);
@@ -148,8 +148,8 @@ public class UsbDebugFragment extends BaseFragment implements View.OnClickListen
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             UsbMsg usbMsg = (UsbMsg) msg.obj;
-            mUsbDebugMsgListAdapter.addMsgItem(usbMsg);
-            mUsbDebugMsgListAdapter.notifyItemInserted(0);
+            mUsbMsgListAdapter.addMsgItem(usbMsg);
+            mUsbMsgListAdapter.notifyItemInserted(0);
             rv_msg_list.scrollToPosition(0);
         }
     };

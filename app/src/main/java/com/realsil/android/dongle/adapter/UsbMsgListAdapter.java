@@ -65,4 +65,8 @@ public class UsbMsgListAdapter extends RecyclerView.Adapter<UsbMsgListAdapter.VH
 
     }
 
+    public List<UsbMsg> getMsgList() {
+        return mMsgList;
+    }
+
 }

@@ -5,9 +5,6 @@ import com.realsil.sdk.core.usb.connector.att.AttPduErrorCodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttPduOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.att.AttributeParseResult;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 /**
  * An abstract class template for creating ATT PDU Request.
  *
@@ -77,7 +74,7 @@ public abstract class BaseAttributeRequest extends BaseRequest {
     public void createRequest() {
         this.mSendDataLength = LENGTH_WRITE_REQUEST_HEAD + mSendMessageLength;
         this.mSendData = new byte[mSendDataLength];
-        this.mReportID = selectComfortableReportID(mSendDataLength);
+        this.mSendReportID = selectComfortableReportID(mSendDataLength);
     }
 
     /**
@@ -89,8 +86,9 @@ public abstract class BaseAttributeRequest extends BaseRequest {
      */
     @Override
     public void parseResponse(byte[] response) {
-        response_opcode = response[2];
+        mReceiveReportID = response[0];
         mReceiveMessageLength = response[1] & 0x0FF;
+        response_opcode = response[2];
     }
 
 }

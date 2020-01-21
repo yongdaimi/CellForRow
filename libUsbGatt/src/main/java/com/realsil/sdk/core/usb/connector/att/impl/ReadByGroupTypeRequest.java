@@ -124,7 +124,7 @@ public class ReadByGroupTypeRequest extends BaseAttributeRequest {
 
         /// Put Protocol Header
         // ReportID
-        byteBuffer.put(mReportID);
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -143,7 +143,7 @@ public class ReadByGroupTypeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttPduOpcodeDefine.READ_BY_GROUP_TYPE_RESPONSE) {
+        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_BY_GROUP_TYPE_RESPONSE) {
             byte attribute_data_length = response[1];
             int attribute_data_list_length = response.length - 2; // Attribute Opcode(1B) + Length(1B) + Attribute Data List(4 to (ATT_MTU- 2))
             byte[] attribute_data_list = new byte[attribute_data_list_length];

@@ -85,7 +85,7 @@ public class ReadDongleConfigRequest extends BaseUsbRequest {
 
         /// Put Protocol Header
         // ReportID
-        byteBuffer.put(mReportID);
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -97,7 +97,7 @@ public class ReadDongleConfigRequest extends BaseUsbRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         super.parseResponse(responseData);
-        if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
+        if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             ByteBuffer buffer = ByteBuffer.wrap(responseData);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             int characteristic_num = responseData[22] & 0x0FF;

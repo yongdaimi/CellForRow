@@ -3,23 +3,23 @@ package com.realsil.sdk.core.usb.connector.cmd.impl;
 import com.realsil.sdk.core.usb.connector.UsbConfig;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdOpcodeDefine;
 import com.realsil.sdk.core.usb.connector.cmd.UsbCmdParamLengthDefine;
-import com.realsil.sdk.core.usb.connector.cmd.callback.ReadLocalChipVersionInfoRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.ReadRomVersionCommandCallback;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * Use this class to read the version information of the local bluetooth chip.
+ * Call an instance of this class to get the version of the rom
  */
-public class ReadLocalChipVersionInfoRequest extends BaseUsbRequest {
+public class ReadRomVersionCommand extends BaseUsbRequest {
 
 
     /**
-     * Add a callback to the current request to listen the status of sending and receiving.
+     * Add a callback to the current command to listen the status of sending and receiving.
      *
      * @param callback Callback for status listening
      */
-    public void addReadLocalChipVersionInfoRequestCallback(ReadLocalChipVersionInfoRequestCallback callback) {
+    public void addReadRomVersionCommandCallback(ReadRomVersionCommandCallback callback) {
         this.mBaseRequestCallback = callback;
     }
 
@@ -28,14 +28,13 @@ public class ReadLocalChipVersionInfoRequest extends BaseUsbRequest {
      *
      * @return Callback for status listening
      */
-    public ReadLocalChipVersionInfoRequestCallback getReadLocalChipVersionInfoRequestCallback() {
-        return (ReadLocalChipVersionInfoRequestCallback) mBaseRequestCallback;
+    public ReadRomVersionCommandCallback getReadRomVersionCommandCallback() {
+        return (ReadRomVersionCommandCallback) mBaseRequestCallback;
     }
-
 
     @Override
     public void setRequestOpcode() {
-        this.request_opcode = UsbCmdOpcodeDefine.READ_LOCAL_VERSION_INFORMATION;
+        this.request_opcode = UsbCmdOpcodeDefine.VENDOR_READ_ROM_VERSION;
     }
 
     @Override
@@ -68,22 +67,15 @@ public class ReadLocalChipVersionInfoRequest extends BaseUsbRequest {
         if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             ByteBuffer buffer = ByteBuffer.wrap(responseData);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            short hciVersion = buffer.getShort(8);
-            short hciRevision = buffer.getShort(10);
-            short lmpVersion = buffer.getShort(12);
-
-            // TODO: 2020/1/10 parse manufacturer Name
-            String manufacturerName = null;
-            short lmpSubVersion = buffer.getShort(15);
-
-            if (getReadLocalChipVersionInfoRequestCallback() != null) {
-                getReadLocalChipVersionInfoRequestCallback().onReceivedVersionInformation(hciVersion, hciRevision, lmpVersion, lmpSubVersion, manufacturerName);
+            // If you want to compare firmware's chip id in the future, you need to add 1
+            // to this chip_id, Note: the chip id here is a unsigned char type
+            int chip_id = buffer.get(8) & 0x0FF;
+            if (getReadRomVersionCommandCallback() != null) {
+                getReadRomVersionCommandCallback().onReadRomVersionSuccess(chip_id);
             }
-
         } else {
-            if (getReadLocalChipVersionInfoRequestCallback() != null) {
-                getReadLocalChipVersionInfoRequestCallback().onReceiveFailed();
+            if (getReadRomVersionCommandCallback() != null) {
+                getReadRomVersionCommandCallback().onReadRomVersionFail();
             }
         }
     }

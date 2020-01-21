@@ -3,9 +3,15 @@ package com.realsil.android.dongle.util;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Environment;
+import android.text.TextUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author xp.chen
@@ -82,6 +88,45 @@ public class FileUtil {
             e.printStackTrace();
         }
         return null;
+    }
+
+
+    /**
+     * Save the contents to the specified file synchronously.
+     *
+     * @param contentStr the content need to save
+     * @param filePath   specified file
+     */
+    public static boolean saveContent2File(String filePath, String contentStr) {
+        if (TextUtils.isEmpty(contentStr) || TextUtils.isEmpty(filePath)) return false;
+        if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) return false;
+
+        File destFile = new File(filePath);
+        if (destFile.isDirectory()) return false;
+        // Save content to the file
+        FileOutputStream fos = null;
+        try {
+            if (destFile.exists()) {
+                contentStr = "\r\n" + contentStr;
+                fos = new FileOutputStream(destFile, true);
+            } else {
+                destFile.createNewFile();
+                fos = new FileOutputStream(destFile);
+            }
+            fos.write(contentStr.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return true;
     }
 
 

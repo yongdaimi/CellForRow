@@ -94,7 +94,7 @@ public class CrashCollectionUtil implements UncaughtExceptionHandler {
 
         sb.append(collectExceptionInfo(ex));
         if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-            String savePath = PathDefine.ROOT_PATH + File.separator + PathDefine.REALSIL_APP_PATH + File.separator + PathDefine.CRASH_LOG_PATH + File.separator;
+            String savePath = PathDefine.ROOT_PATH + File.separator + PathDefine.DONGLE_APP_PATH + File.separator + PathDefine.CRASH_LOG_PATH + File.separator;
             LogX.i(TAG, "saveDir: " + savePath);
             File dir = new File(savePath);
             if (!dir.exists()) {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path
+        name="DongleAppPath"
+        path="Dongle/" />
+    <external-path
+        name="DownloadPatchPatch"
+        path="Dongle/DownloadPatchLog/" />
+</resource>

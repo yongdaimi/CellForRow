@@ -44,7 +44,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
      *
      * @param attHandle The handler of the attribute to be written.
      * @param attValue  The value to be written to the attribute.
-     * @param reportID The report id of send message.
+     * @param reportID  The report id of send message.
      */
     public WriteAttributeRequest(short attHandle, byte[] attValue, byte reportID) {
         this.mAttHandle = attHandle;
@@ -90,7 +90,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
 
         /// Put Protocol Header
         // ReportID
-        byteBuffer.put(mReportID);
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -106,7 +106,7 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
+        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
             if (getWriteAttributeRequestCallback() != null) {
                 getWriteAttributeRequestCallback().onWriteSuccess();
             }

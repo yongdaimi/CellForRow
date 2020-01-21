@@ -15,6 +15,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomnavigation.LabelVisibilityMode;
 import com.realsil.android.dongle.R;
 import com.realsil.android.dongle.base.BaseActivity;
+import com.realsil.android.dongle.fragment.UsbAudioFragment;
 import com.realsil.android.dongle.fragment.UsbDebugFragment;
 import com.realsil.android.dongle.fragment.UsbDownloadPatchFragment;
 
@@ -64,8 +65,10 @@ public class MainActivity extends BaseActivity {
         mFragmentList = new ArrayList<Fragment>();
         UsbDownloadPatchFragment usbDownloadPatchFragment = UsbDownloadPatchFragment.newInstance();
         UsbDebugFragment usbDebugFragment = UsbDebugFragment.newInstance();
+        UsbAudioFragment usbAudioFragment = UsbAudioFragment.newInstance();
         mFragmentList.add(usbDownloadPatchFragment);
         mFragmentList.add(usbDebugFragment);
+        mFragmentList.add(usbAudioFragment);
         vp_pager.setAdapter(mFragmentPagerAdapter);
     }
 

@@ -68,7 +68,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
 
         /// Put Protocol Header
         // ReportID
-        byteBuffer.put(mReportID);
+        byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
 
@@ -82,7 +82,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
+        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
             byte[] att_value = new byte[mReceiveMessageLength - AttPduParamLengthDefine.LENGTH_ATT_OPCODE];
             System.arraycopy(response, 3, att_value, 0, att_value.length);
 

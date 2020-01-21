@@ -19,6 +19,11 @@ public abstract class OnUsbDeviceStatusChangeCallback {
      */
     public void authorizeCurrentDevice(UsbDevice usbDevice, boolean authorizeResult) {}
 
+    /**
+     * This method will be called when the attach state of the device has changed.
+     * @param attachStatus usb device attach status, true: attached, false: detached.
+     */
+    public void onDeviceAttachStatusHasChanged(boolean attachStatus) {}
 
     /**
      * This method will be called when the usb device's connection status has changed.

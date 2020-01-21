@@ -27,5 +27,9 @@ public interface UsbCmdOpcodeDefine {
      * 0x0001 = Read Local Version Information
      */
     short READ_LOCAL_VERSION_INFORMATION = (short) 0x0001;
+    /**
+     * 0XFC6D = READ ROM Version
+     */
+    short VENDOR_READ_ROM_VERSION        = (short) 0xFC6D;
 
 }

@@ -3,6 +3,7 @@ package com.realsil.android.dongle.fragment;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.hardware.usb.UsbDevice;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -12,44 +13,62 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.realsil.android.dongle.PathDefine;
 import com.realsil.android.dongle.R;
-import com.realsil.android.dongle.adapter.UsbDebugMsgListAdapter;
+import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
 import com.realsil.android.dongle.base.BaseFragment;
 import com.realsil.android.dongle.entity.UsbMsg;
 import com.realsil.android.dongle.helper.DownloadPatchHelper;
 import com.realsil.android.dongle.util.FileUtil;
+import com.realsil.android.dongle.util.TimeUtil;
+import com.realsil.sdk.core.usb.UsbGatt;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
+import com.realsil.sdk.core.usb.connector.UsbError;
+import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.ReadLocalChipVersionInfoRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.ReadRomVersionCommandCallback;
+import com.realsil.sdk.core.usb.connector.cmd.impl.QueryBTConnectStateRequest;
 import com.realsil.sdk.core.usb.connector.cmd.impl.ReadLocalChipVersionInfoRequest;
+import com.realsil.sdk.core.usb.connector.cmd.impl.ReadRomVersionCommand;
 
+import java.io.File;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Arrays;
+import java.util.List;
 
 
 public class UsbDownloadPatchFragment extends BaseFragment implements View.OnClickListener {
 
 
+    private Button btn_connect_usb_device;
     private Button btn_load_patch_code;
     private Button btn_load_config_file;
     private Button btn_start_download_patch;
 
+    private ImageButton ib_save_running_log;
+
     private RecyclerView rv_msg_list;
 
-    private UsbDebugMsgListAdapter mUsbDebugMsgListAdapter;
+    private UsbMsgListAdapter mUsbMsgListAdapter;
 
     private static final int REQUEST_CODE_CHOOSE_PATCH_CODE_FILE = 10001;
     private static final int REQUEST_CODE_CHOOSE_CONFIG_FILE     = 10002;
 
-
     private static final int MSG_WHAT_UPDATE_LOG_TEXT            = 0;
     private static final int MSG_WHAT_READ_BINARY_FILE_COMPLETED = 1;
+    private static final int MSG_WHAT_ENABLE_SAVE_LOG_BTN        = 2;
 
+    private static final byte[] DEFINE_PATCH_CODE_HEADER = {'R', 'e', 'a', 'l', 't', 'e', 'c', 'h'};
 
     private static final String TAG = "xp.chen";
 
@@ -59,6 +78,8 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     private byte[] mPatchCodeByteArr;
     private byte[] mConfigFileByteArr;
 
+    private int mMsgCount;
+
     @Override
     protected void setContainer() {
         setContentView(R.layout.fragment_usb_download_patch);
@@ -66,9 +87,12 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
 
     @Override
     protected void init() {
+        btn_connect_usb_device = findViewById(R.id.btn_connect_usb_device);
         btn_load_patch_code = findViewById(R.id.btn_load_patch_code);
         btn_load_config_file = findViewById(R.id.btn_load_config_file);
         btn_start_download_patch = findViewById(R.id.btn_start_download_patch);
+
+        ib_save_running_log = findViewById(R.id.ib_save_running_log);
 
         rv_msg_list = findViewById(R.id.rv_msg_list);
         LinearLayoutManager layoutManager = new LinearLayoutManager(mContext);
@@ -79,9 +103,11 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
 
     @Override
     protected void setListener() {
+        btn_connect_usb_device.setOnClickListener(this);
         btn_load_patch_code.setOnClickListener(this);
         btn_load_config_file.setOnClickListener(this);
         btn_start_download_patch.setOnClickListener(this);
+        ib_save_running_log.setOnClickListener(this);
     }
 
 
@@ -95,13 +121,16 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mUsbDebugMsgListAdapter = new UsbDebugMsgListAdapter(mContext, new ArrayList<UsbMsg>());
-        rv_msg_list.setAdapter(mUsbDebugMsgListAdapter);
+        mUsbMsgListAdapter = new UsbMsgListAdapter(mContext, new ArrayList<UsbMsg>());
+        rv_msg_list.setAdapter(mUsbMsgListAdapter);
     }
 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
+            case R.id.btn_connect_usb_device:
+                connectUsbDevice();
+                break;
             case R.id.btn_load_patch_code:
                 loadPatchCode();
                 break;
@@ -111,10 +140,72 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             case R.id.btn_start_download_patch:
                 startDownloadPatch();
                 break;
+            case R.id.ib_save_running_log:
+                saveRunningLog();
+                break;
             default:
                 break;
         }
     }
+
+    private void connectUsbDevice() {
+        int initRet = LocalUsbConnector.getInstance().initConnector(mContext);
+        if (initRet != UsbError.CODE_NO_ERROR) {
+            sendUsbMessage("init usb device failed", initRet);
+            return;
+        }
+
+        LocalUsbConnector.getInstance().addOnUsbDeviceStatusChangeCallback(mOnUsbDeviceStatusChangeCallback);
+
+        int searchRet = LocalUsbConnector.getInstance().searchUsbDevice();
+        if (searchRet != UsbError.CODE_NO_ERROR) {
+            sendUsbMessage("can not found usb device", searchRet);
+            return;
+        }
+
+        int authorizeRet = LocalUsbConnector.getInstance().authorizeDevice();
+        if (authorizeRet != UsbError.CODE_NO_ERROR) {
+            sendUsbMessage("device is not authorized", authorizeRet);
+        }
+    }
+
+    private OnUsbDeviceStatusChangeCallback mOnUsbDeviceStatusChangeCallback = new OnUsbDeviceStatusChangeCallback() {
+        @Override
+        public void authorizeCurrentDevice(UsbDevice usbDevice, boolean authorizeResult) {
+            super.authorizeCurrentDevice(usbDevice, authorizeResult);
+            if (authorizeResult) {
+                int setupRet = LocalUsbConnector.getInstance().setupDevice();
+                if (setupRet != UsbError.CODE_NO_ERROR) {
+                    sendUsbMessage("usb device setup failed", setupRet);
+                    return;
+                }
+
+                int connectRet = LocalUsbConnector.getInstance().connect();
+                if (connectRet != UsbError.CODE_NO_ERROR) {
+                    sendUsbMessage("failed to connect usb device", connectRet);
+                    return;
+                }
+                sendUsbMessage("connected usb device successfully");
+            } else {
+                sendUsbMessage("usb device authorization failed", UsbMsg.MSG_TYPE_ERROR);
+            }
+        }
+
+        @Override
+        public void onDeviceAttachStatusHasChanged(boolean attachStatus) {
+            super.onDeviceAttachStatusHasChanged(attachStatus);
+            if (attachStatus) {
+                sendUsbMessage("usb device has attached");
+            } else {
+                sendUsbMessage("usb device has detached", UsbMsg.MSG_TYPE_ERROR);
+            }
+        }
+
+        @Override
+        public void onDeviceConnectionStatusHasChanged(boolean connectionStatus) {
+            super.onDeviceConnectionStatusHasChanged(connectionStatus);
+        }
+    };
 
 
     private void loadPatchCode() {
@@ -126,6 +217,13 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     }
 
     private void startDownloadPatch() {
+        // Check local usb device has connected.
+        if (LocalUsbConnector.getInstance().getUsbConnectState() != LocalUsbConnector.STATE_USB_CONNECTED) {
+            sendUsbMessage(getLocalString(R.string.usb_error_connect_usb_device), UsbMsg.MSG_TYPE_ERROR);
+            return;
+        }
+
+        // Check whether the patch code file and config file exist
         if (TextUtils.isEmpty(mSelectedPathCodePath)) {
             sendUsbMessage(getLocalString(R.string.usb_error_no_patch_code_file), UsbMsg.MSG_TYPE_ERROR);
             return;
@@ -137,9 +235,63 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         }
 
         sendUsbMessage("Found the patch code file and config file");
-        // Start read patch code file and config file.
-        ReadBinaryFileContentThread readBinaryFileContentThread = new ReadBinaryFileContentThread();
 
+        // Check bluetooth gatt connection state
+        queryBTConnectStateRequest();
+    }
+
+    private void queryBTConnectStateRequest() {
+        QueryBTConnectStateRequest queryBTConnectStateRequest = new QueryBTConnectStateRequest();
+        queryBTConnectStateRequest.addQueryBTConnectStateRequestCallback(new QueryBTConnectStateRequestCallback() {
+            @Override
+            public void onReceiveConnectState(int statusCode, int connectState) {
+                super.onReceiveConnectState(statusCode, connectState);
+                if (connectState == UsbGatt.STATE_CONNECTED) {
+                    sendUsbMessage("Connect to bluetooth gatt successfully");
+                    readRomVersionCommand();
+                } else {
+                    sendUsbMessage("Connect to bluetooth gatt failed, connectState: " + connectState, UsbMsg.MSG_TYPE_ERROR);
+                }
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                sendUsbMessage("Connect to bluetooth gatt failed, connection timeout", UsbMsg.MSG_TYPE_ERROR);
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(queryBTConnectStateRequest);
+    }
+
+    /**
+     * Call this method to get the chip id for the current rom.
+     */
+    private void readRomVersionCommand() {
+        ReadRomVersionCommand readRomVersionCommand = new ReadRomVersionCommand();
+        readRomVersionCommand.addReadRomVersionCommandCallback(new ReadRomVersionCommandCallback() {
+            @Override
+            public void onReadRomVersionSuccess(int romVersion) {
+                super.onReadRomVersionSuccess(romVersion);
+                sendUsbMessage("current rom version is: " + romVersion + " + 1");
+                new ReadBinaryFileContentThread(romVersion).start();
+                // Compare Bluetooth chip versions
+                // readLocalVersionInformationRequest();
+                // Start load patch code file and config file
+            }
+
+            @Override
+            public void onReadRomVersionFail() {
+                super.onReadRomVersionFail();
+                sendUsbMessage("read rom version failed");
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                sendUsbMessage("read rom version timeout");
+            }
+        });
+        LocalUsbConnector.getInstance().sendRequest(readRomVersionCommand);
     }
 
 
@@ -149,25 +301,34 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             @Override
             public void onReceivedVersionInformation(int hciVersion, int hciRevision, int lmpVersion, int lmpSubVersion, String manufacturerName) {
                 super.onReceivedVersionInformation(hciVersion, hciRevision, lmpVersion, lmpSubVersion, manufacturerName);
-
+                // TODO: 2020/1/13 Start compare bluetooth chip version,
+                // new ReadBinaryFileContentThread().start();
             }
 
             @Override
             public void onReceiveFailed() {
                 super.onReceiveFailed();
-
+                sendUsbMessage("can not read bluetooth chip version", UsbMsg.MSG_TYPE_ERROR);
             }
         });
-
         LocalUsbConnector.getInstance().sendRequest(readLocalChipVersionInfoRequest);
     }
 
-
     private class ReadBinaryFileContentThread extends Thread {
 
-        private AtomicInteger mAtomicInteger = new AtomicInteger();
+        /**
+         * chip id of the current rom
+         */
+        private int mChipID;
 
-        private static final int MAX_READ_LENGTH_ONCE = 252;
+        ReadBinaryFileContentThread(int chipID) {
+            // hci_rtk_find_patch(rom_version + 1, path_info, hci_process_info);
+            // find patch by this chip id
+            // this.mChipID = chipID + 1;
+            // TODO: 2020/1/15 There is no release version of patch firmware now,
+            //  so I set the chip id value to 2 for debug.
+            this.mChipID = 2;
+        }
 
         @Override
         public void run() {
@@ -185,26 +346,98 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
                 return;
             }
             // Merge Patch code byte array and config file byte array to a new array.
-            byte[] mergedPatchArray = new byte[mPatchCodeByteArr.length + mConfigFileByteArr.length];
-            System.arraycopy(mPatchCodeByteArr, 0, mergedPatchArray, 0, mPatchCodeByteArr.length);
-            System.arraycopy(mConfigFileByteArr, 0, mergedPatchArray, mPatchCodeByteArr.length, mConfigFileByteArr.length);
+            byte[] mergedPatchCode = new byte[mPatchCodeByteArr.length + mConfigFileByteArr.length];
+            System.arraycopy(mPatchCodeByteArr, 0, mergedPatchCode, 0, mPatchCodeByteArr.length);
+            System.arraycopy(mConfigFileByteArr, 0, mergedPatchCode, mPatchCodeByteArr.length, mConfigFileByteArr.length);
 
-            sendUsbMessage("file read complete");
-            // mHandler.obtainMessage(MSG_WHAT_READ_BINARY_FILE_COMPLETED).sendToTarget();
-            sendPacket2BtController(mergedPatchArray);
+            // Check whether the patch header is correct
+            // Note: Download Patch Code Header must be "Realtech"
+            byte[] patchCodeHeader = Arrays.copyOfRange(mergedPatchCode, 0, DEFINE_PATCH_CODE_HEADER.length);
+            if (!Arrays.equals(patchCodeHeader, DEFINE_PATCH_CODE_HEADER)) {
+                sendUsbMessage("download failed, invalid patch code file", UsbMsg.MSG_TYPE_ERROR);
+                return;
+            }
+
+            // Read version info(LmpSubversion)
+            ByteBuffer buffer = ByteBuffer.wrap(mergedPatchCode);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            int patch_lmp_subversion = buffer.getInt(8);
+            int patch_len = 0, patch_offset = 0;
+
+            int num_of_patch = (mergedPatchCode[0x0C] | (mergedPatchCode[0x0D] << 8)) & 0x0FF;
+            sendUsbMessage("patch num in file is: " + num_of_patch);
+
+            if (num_of_patch == 1) {
+                // If there is only one patch
+                int firmware_chip_id = (mergedPatchCode[0x0E] | (mergedPatchCode[0x0F] << 8)) & 0x0FF;
+                sendUsbMessage("firmware chip id: " + firmware_chip_id + ", read rom chip id: " + mChipID);
+
+                patch_len = (mergedPatchCode[0x0E + 2] | (mergedPatchCode[0x0F + 2] << 8)) & 0x0FF;
+                patch_offset = (mergedPatchCode[0x0E + 4] | (mergedPatchCode[0x0F + 4] << 8)) & 0x0FF;
+            } else {
+                // If there are multiple patches
+                int i = 0;
+                for (i = 0; i < num_of_patch; i++) {
+                    int firmware_chip_id = (mergedPatchCode[0x0E + 2 * i] | (mergedPatchCode[0x0F + 2 * i] << 8)) & 0x0FF;
+                    sendUsbMessage("find firmware chip id " + firmware_chip_id + "...");
+                    if (firmware_chip_id == mChipID) {
+                        patch_len = (mergedPatchCode[0x0e + 2 * num_of_patch + 2 * i] | (mergedPatchCode[0x0f + 2 * num_of_patch + 2 * i] << 8)) & 0x0FF;
+                        patch_offset = (mergedPatchCode[0x0e + 4 * num_of_patch + 4 * i] | (mergedPatchCode[0x0f + 4 * num_of_patch + 4 * i] << 8)) & 0X0FF;
+                        break;
+                    }
+                }
+                // If can not found the matching patch id, then tell the user to end
+                if (i >= num_of_patch) {
+                    sendUsbMessage("matching chip id could not be found", UsbMsg.MSG_TYPE_ERROR);
+                    return;
+                }
+            }
+
+            // Create a new byte array to hold the patch info to be sent
+            byte[] patch_info = new byte[patch_len];
+            System.arraycopy(mergedPatchCode, patch_offset, patch_info, 0, patch_info.length);
+            ByteBuffer patch_info_buffer = ByteBuffer.wrap(patch_info);
+            patch_info_buffer.order(ByteOrder.LITTLE_ENDIAN);
+            patch_info_buffer.putInt(patch_info.length - 4, patch_lmp_subversion);
+
+            sendUsbMessage("patch file read complete(length = " + patch_len + "), ready to start...");
+
+            // Ready to start send file
+            sendPacket2BtController(mergedPatchCode);
         }
+
 
         private void sendPacket2BtController(byte[] patchArray) {
             DownloadPatchHelper downloadPatchHelper = new DownloadPatchHelper(patchArray);
+            downloadPatchHelper.addOnDownloadStatusChangeListener(new DownloadPatchHelper.OnDownloadStatusChangeListener() {
+                @Override
+                public void onDownloadStarted() {
+                    sendUsbMessage("start the download patch operation...");
+                }
+
+                @Override
+                public void onDownloadCanceled() {
+                    sendUsbMessage("download patch has been canceled", UsbMsg.MSG_TYPE_ERROR);
+                }
+
+                @Override
+                public void onDownloadFailed(int errorCode) {
+                    sendUsbMessage("download patch failed", errorCode);
+                }
+
+                @Override
+                public void onDownloadCompleted() {
+                    sendUsbMessage("download patch has completed");
+                }
+
+                @Override
+                public void onDownloadProgressChanged(int progress) {
+                    sendUsbMessage("download patch... " + progress + "%");
+                }
+            });
             downloadPatchHelper.startDownloadPatch();
         }
-
     }
-
-
-
-
-
 
     private void chooseFile(int requestCode) {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -212,7 +445,6 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         intent.setType("*/*");
         startActivityForResult(intent, requestCode);
     }
-
 
     private void sendUsbMessage(String message) {
         sendUsbMessage(message, UsbMsg.MSG_TYPE_NORMAL);
@@ -226,7 +458,6 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         msg.sendToTarget();
     }
 
-
     private Handler mHandler = new Handler(Looper.getMainLooper()) {
         @Override
         public void handleMessage(@NonNull Message msg) {
@@ -234,12 +465,20 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             switch (msg.what) {
                 case MSG_WHAT_UPDATE_LOG_TEXT:
                     UsbMsg usbMsg = (UsbMsg) msg.obj;
-                    mUsbDebugMsgListAdapter.addMsgItem(usbMsg);
-                    mUsbDebugMsgListAdapter.notifyItemInserted(0);
+                    mUsbMsgListAdapter.addMsgItem(usbMsg);
+                    mUsbMsgListAdapter.notifyItemInserted(0);
                     rv_msg_list.scrollToPosition(0);
                     break;
                 case MSG_WHAT_READ_BINARY_FILE_COMPLETED:
 
+                    break;
+                case MSG_WHAT_ENABLE_SAVE_LOG_BTN:
+                    ib_save_running_log.setEnabled(true);
+                    if (msg.arg1 < 0) {
+                        showToast("Save log failed");
+                    } else {
+                        showToast("Save log success");
+                    }
                     break;
                 default:
                     break;
@@ -271,9 +510,79 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             Log.i(TAG, "File uri: " + uri.toString());
 
             mSelectedConfigFilePath = FileUtil.getFilePath(mContext, uri);
-            Log.i(TAG, "Select Patch Code Path: " + mSelectedConfigFilePath);
-            sendUsbMessage("Select Patch Code Path: " + mSelectedConfigFilePath);
+            Log.i(TAG, "Select Config File Path: " + mSelectedConfigFilePath);
+            sendUsbMessage("Select Config File Path: " + mSelectedConfigFilePath);
         }
+    }
+
+
+    private class SaveRunningLogWorker extends Thread {
+
+        private String       mSavePath;
+        private List<UsbMsg> mUsbMsgList;
+
+        SaveRunningLogWorker(String savePath, List<UsbMsg> usbMsgList) {
+            this.mSavePath = savePath;
+            this.mUsbMsgList = usbMsgList;
+        }
+
+        @Override
+        public void run() {
+            super.run();
+            Message msg = mHandler.obtainMessage(MSG_WHAT_ENABLE_SAVE_LOG_BTN);
+
+            if (mUsbMsgList == null || mUsbMsgList.size() == 0) {
+                msg.arg1 = -1;
+                msg.sendToTarget();
+                return;
+            }
+            StringBuilder builder = new StringBuilder();
+            String fileHeaderStr = "[" + TimeUtil.getFullTimeStr() + "]";
+            String newLineSymbol = "\r\n";
+            builder.append(fileHeaderStr).append(newLineSymbol);
+            // Record detail content
+            for (UsbMsg usbMsg : mUsbMsgList) {
+                builder.append(usbMsg.getMsgString()).append(newLineSymbol);
+            }
+            boolean saveResult = FileUtil.saveContent2File(mSavePath, builder.toString());
+            if (saveResult) {
+                msg.arg1 = 0;
+                mMsgCount = mUsbMsgList.size();
+            } else {
+                msg.arg1 = -1;
+            }
+            msg.sendToTarget();
+        }
+    }
+
+    private void saveRunningLog() {
+        ib_save_running_log.setEnabled(false);
+        // Create a new thread to perform the save operation.
+        String filePrefix = "Download_Patch_";
+        String fileSuffix = ".txt";
+        String fileName = filePrefix + TimeUtil.getSimpleDateStr() + fileSuffix;
+
+        String saveLogDirPath = PathDefine.ROOT_PATH + File.separator +
+                PathDefine.DONGLE_APP_PATH + File.separator +
+                PathDefine.DOWNLOAD_PATCH_LOG_PATH;
+        File saveLogDir = new File(saveLogDirPath);
+        if (!saveLogDir.exists()) saveLogDir.mkdirs();
+
+        String saveLogName = saveLogDirPath + File.separator + fileName;
+        int realMsgCount = mUsbMsgListAdapter.getItemCount();
+        if (realMsgCount == 0) {
+            ib_save_running_log.setEnabled(true);
+            return;
+        }
+
+        // Save only if the log contents are different.
+        if (mMsgCount == realMsgCount) {
+            Message msg = mHandler.obtainMessage(MSG_WHAT_ENABLE_SAVE_LOG_BTN);
+            msg.arg1 = 0;
+            msg.sendToTarget();
+            return;
+        }
+        new SaveRunningLogWorker(saveLogName, mUsbMsgListAdapter.getMsgList()).start();
     }
 
 }
