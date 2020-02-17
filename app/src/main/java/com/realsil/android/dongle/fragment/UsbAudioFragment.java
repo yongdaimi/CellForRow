@@ -18,10 +18,7 @@ public class UsbAudioFragment extends BaseFragment implements View.OnClickListen
         System.loadLibrary("native-lib");
     }
 
-
-
     private Button btn_start_play;
-
 
     @Override
     protected void setContainer() {

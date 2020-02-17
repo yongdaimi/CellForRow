@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -143,7 +144,7 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
 
     private OnUsbDeviceStatusChangeCallback mOnUsbDeviceStatusChangeCallback = new OnUsbDeviceStatusChangeCallback() {
         @Override
-        public void authorizeCurrentDevice(boolean authorizeResult) {
+        public void authorizeCurrentDevice(UsbDevice usbDevice, boolean authorizeResult) {
             if (authorizeResult) {
                 int setupRet = LocalUsbConnector.getInstance().setupDevice();
                 if (setupRet != UsbError.CODE_NO_ERROR) {
@@ -163,20 +164,7 @@ public class UsbCommActivity extends AppCompatActivity implements View.OnClickLi
             }
         }
 
-        @Override
-        public void onDeviceHasConnected() {
 
-        }
-
-        @Override
-        public void onDeviceHasDisconnected() {
-
-        }
-
-        @Override
-        public void onDeviceStatusChange(int errorCode, String detailInfo) {
-
-        }
     };
 
     private void send_att_pdu_to_server() {

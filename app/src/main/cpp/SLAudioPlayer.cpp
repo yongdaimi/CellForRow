@@ -3,7 +3,7 @@
 //
 
 #include <jni.h>
-#include <string>
+#include <stdio.h>
 #include "SLAudioPlayer.h"
 
 #include <SLES/OpenSLES.h>
@@ -12,7 +12,8 @@
 #include "SLLog.h"
 
 
-static void writePcmDataCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void *pContext) {
+static void writePcmDataCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void *pContext)
+{
     static char *buf = NULL;
     static FILE *fp = NULL;
 
@@ -34,15 +35,18 @@ static void writePcmDataCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void
     }
 }
 
+/*
 static void readPcmDataCallback(SLAndroidSimpleBufferQueueItf queue, void *pContext) {
     // read pcm data from queue.
 
 }
+*/
 
 
-int SLAudioPlayer::initAudioPlayer() {
+SLresult SLAudioPlayer::initAudioPlayer()
+{
 
-    if (mEngineInterface == NULL) {
+    if (mEngineItf == NULL) {
         SLresult ret;
         SLObjectItf engineObject;
 
@@ -58,29 +62,36 @@ int SLAudioPlayer::initAudioPlayer() {
             return ret;
         }
 
-        ret = (*engineObject)->GetInterface(engineObject, SL_IID_ENGINE, &mEngineInterface);
+        ret = (*engineObject)->GetInterface(engineObject, SL_IID_ENGINE, &mEngineItf);
         if (ret != SL_RESULT_SUCCESS) {
             XLOGE("engineObject GetInterface SL_IID_ENGINE failed");
             return ret;
         }
+
+        XLOGI("slCreateEngine() success");
     }
     return SL_RESULT_SUCCESS;
 }
 
 
-int SLAudioPlayer::startPlay() {
+SLresult SLAudioPlayer::startPlay()
+{
 
-    SLresult ret;
+    SLresult ret = 0;
 
     // 1. Init the engine interface
-    if (mEngineInterface == NULL) {
-        ret = (SLresult) initAudioPlayer();
-        if (ret != SL_RESULT_SUCCESS) return ret;
+    if (mEngineItf == NULL) {
+        ret = initAudioPlayer();
+    }
+
+    if (ret != SL_RESULT_SUCCESS) {
+        XLOGE("slCreateEngine() failed");
+        return ret;
     }
 
     // 2. Create output mix
     SLObjectItf outputMix;
-    ret = (*mEngineInterface)->CreateOutputMix(mEngineInterface, &outputMix, 0, NULL, NULL);
+    ret = (*mEngineItf)->CreateOutputMix(mEngineItf, &outputMix, 0, NULL, NULL);
     if (ret != SL_RESULT_SUCCESS) {
         XLOGE("create output mix failed");
         return ret;
@@ -115,9 +126,10 @@ int SLAudioPlayer::startPlay() {
     SLInterfaceID audioPlayerIIDs[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
     SLboolean audioPlayerIIDsRequired[] = {SL_BOOLEAN_TRUE};
 
-    ret = (*mEngineInterface)->CreateAudioPlayer(mEngineInterface, &audioPlayer, &audioDataSource,
-                                                 &audioSink, numInterfaces, audioPlayerIIDs,
-                                                 audioPlayerIIDsRequired);
+    ret = (*mEngineItf)->CreateAudioPlayer(mEngineItf, &audioPlayer,
+                                           &audioDataSource,
+                                           &audioSink, numInterfaces, audioPlayerIIDs,
+                                           audioPlayerIIDsRequired);
     if (ret != SL_RESULT_SUCCESS) {
         XLOGE("create audio player failed");
         return ret;
@@ -149,68 +161,71 @@ int SLAudioPlayer::startPlay() {
     }
     (*playInterface)->SetPlayState(playInterface, SL_PLAYSTATE_PLAYING);
 
-
     (*bufferQueueInterface)->Enqueue(bufferQueueInterface, "", 1);
     return ret;
+
 }
 
 
-int SLAudioPlayer::startRecord() {
+SLresult SLAudioPlayer::startRecord()
+{
+    SLresult ret = 0;
 
-    SLresult ret;
-    if (mEngineInterface == NULL) {
-        ret = (SLresult) initAudioPlayer();
-        if (ret != SL_RESULT_SUCCESS) return ret;
+    // 1. Init the engine interface.
+    if (mEngineItf == NULL) {
+        ret = initAudioPlayer();
     }
 
-    // Create a new audio record object
-    // Audio data source
-    SLDataLocator_IODevice device = {
-            SL_DATALOCATOR_OUTPUTMIX,
-            SL_IODEVICE_AUDIOINPUT,
-            SL_DEFAULTDEVICEID_AUDIOINPUT,
-            NULL, // Must be NULL if the deviceID parameter is to be used.
-    };
-
-    SLDataSource recorderDataSource = {
-            &device,
-            NULL // This parameter is ignored if pLocator is SLDataLocator_IODevice.
-    };
-
-    // Audio data sink
-    SLDataLocator_AndroidSimpleBufferQueue queue = {
-            SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
-            10
-    };
-
-    SLDataFormat_PCM pcm = {
-            SL_DATAFORMAT_PCM,
-            2,
-            SL_SAMPLINGRATE_44_1,
-            SL_PCMSAMPLEFORMAT_FIXED_16,
-            SL_PCMSAMPLEFORMAT_FIXED_16,
-            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
-            SL_BYTEORDER_LITTLEENDIAN
-    };
-
-    SLDataSink recorderDataSink = {
-            &queue,
-            &pcm
-    };
-
-    SLuint32 requiredInterfaceNum = 1;
-    SLInterfaceID requiredInterfaceArr[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
-    SLboolean required[] = {SL_BOOLEAN_TRUE};
+    if (ret != SL_RESULT_SUCCESS) {
+        XLOGE("init audioPlayer failed");
+        return ret;
+    }
 
     SLObjectItf audioRecorder;
 
-    ret = (*mEngineInterface)->CreateAudioRecorder(mEngineInterface,
-                                                   &audioRecorder, &recorderDataSource,
-                                                   &recorderDataSink,
-                                                   requiredInterfaceNum, requiredInterfaceArr,
-                                                   required);
+    // Configuration the recorder's audio data source
+    SLDataLocator_IODevice device;
+    device.locatorType = SL_DATALOCATOR_IODEVICE;
+    device.deviceType = SL_IODEVICE_AUDIOINPUT;
+    device.deviceID = SL_DEFAULTDEVICEID_AUDIOINPUT;
+    device.device = NULL; // Must be Null if deviceID parameter is to be used.
+
+    SLDataSource dataSource;
+    dataSource.pLocator = &device;
+    dataSource.pFormat = NULL; // This parameter is ignored if pLocator is SLDataLocator_IODevice.
+
+    // Configuration the recorder's audio data save way.
+    SLDataLocator_AndroidSimpleBufferQueue queue;
+    queue.locatorType = SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE;
+    queue.numBuffers = 10;
+
+    SLDataFormat_PCM pcmFormat;
+    pcmFormat.formatType = SL_DATAFORMAT_PCM;
+    pcmFormat.numChannels = 2;
+    pcmFormat.samplesPerSec = SL_SAMPLINGRATE_44_1;
+    pcmFormat.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
+    pcmFormat.containerSize = SL_PCMSAMPLEFORMAT_FIXED_16;
+    pcmFormat.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+    pcmFormat.endianness = SL_BYTEORDER_LITTLEENDIAN;
+
+    SLDataSink dataSink;
+    dataSink.pLocator = &queue;
+    dataSink.pFormat = &pcmFormat;
+
+    // Configure the interface that the recorder needs to support.
+    SLInterfaceID ids[] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
+    SLboolean ids_required[] = {SL_BOOLEAN_TRUE};
+    SLuint32 numInterfaces = sizeof(ids) / sizeof(SLInterfaceID);
+
+    // Create the audio recorder.
+    ret = (*mEngineItf)->CreateAudioRecorder(mEngineItf, &audioRecorder,
+                                             &dataSource,
+                                             &dataSink,
+                                             numInterfaces,
+                                             ids,
+                                             ids_required);
     if (ret != SL_RESULT_SUCCESS) {
-        XLOGE("create audio recorder failed");
+        XLOGE("CreateAudioRecorder() failed");
         return ret;
     }
 
@@ -220,42 +235,15 @@ int SLAudioPlayer::startRecord() {
         return ret;
     }
 
-    SLAndroidSimpleBufferQueueItf queueInterface;
-    ret = (*audioRecorder)->GetInterface(audioRecorder, SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
-                                         &queueInterface);
+    SLAndroidSimpleBufferQueueItf queueItf;
+    ret = (*audioRecorder)->GetInterface(audioRecorder, SL_IID_ANDROIDSIMPLEBUFFERQUEUE, &queueItf);
     if (ret != SL_RESULT_SUCCESS) {
-        XLOGE("audioRecorder get SL_IID_ANDROIDSIMPLEBUFFERQUEUE interface failed");
+        XLOGE("audioRecorder get simpleBufferQueue interface failed");
         return ret;
     }
 
-    (*queueInterface)->RegisterCallback(queueInterface, readPcmDataCallback, NULL);
-
-    // Start recording
-    SLRecordItf recordInterface;
-    (*audioRecorder)->GetInterface(audioRecorder, SL_IID_RECORD, &recordInterface);
-
-    (*recordInterface)->SetRecordState(recordInterface, SL_RECORDSTATE_RECORDING);
-
     return ret;
 }
-
-
-int SLAudioPlayer::stopPlay() {
-    return 0;
-}
-
-
-int SLAudioPlayer::pauseRecord() {
-    return 0;
-}
-
-
-int SLAudioPlayer::stopRecord() {
-    return 0;
-}
-
-
-
 
 
 

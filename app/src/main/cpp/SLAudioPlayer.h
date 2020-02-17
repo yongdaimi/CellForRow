@@ -9,23 +9,19 @@
 #include <SLES/OpenSLES.h>
 
 
-class SLAudioPlayer {
+class SLAudioPlayer
+{
 
 public:
 
-    int initAudioPlayer();
+    SLresult initAudioPlayer();
 
-    int startPlay();
-    int stopPlay();
+    SLresult startPlay();
 
-    int startRecord();
-    int pauseRecord();
-    int stopRecord();
-
+    SLresult startRecord();
 
 private:
-    static SLEngineItf mEngineInterface;
-
+    SLEngineItf mEngineItf = NULL;
 };
 
 
