@@ -140,7 +140,7 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_BY_TYPE_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.READ_BY_TYPE_RESPONSE) {
             byte handle_value_pair_length = response[1];
             int attribute_data_list_length = response.length - 2; // Attribute Opcode(1B) + Length(1B) + Attribute Data List(4 to (ATT_MTU- 2))
             byte[] attribute_data_list = new byte[attribute_data_list_length];
@@ -151,5 +151,17 @@ public class ReadByTypeRequest extends BaseAttributeRequest {
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         }
+
+        /*if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_BY_TYPE_RESPONSE) {
+            byte handle_value_pair_length = response[1];
+            int attribute_data_list_length = response.length - 2; // Attribute Opcode(1B) + Length(1B) + Attribute Data List(4 to (ATT_MTU- 2))
+            byte[] attribute_data_list = new byte[attribute_data_list_length];
+            System.arraycopy(response, 2, attribute_data_list, 0, attribute_data_list_length);
+
+            if (getReadByTypeRequestCallback() != null) {
+                getReadByTypeRequestCallback().onReadSuccess(handle_value_pair_length & 0x0FF, attribute_data_list);
+            }
+            mParseResult = AttributeParseResult.PARSE_SUCCESS;
+        }*/
     }
 }

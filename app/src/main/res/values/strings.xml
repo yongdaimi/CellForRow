@@ -30,6 +30,7 @@
     <string name="usb_load_config_file">Load Config File</string>
     <string name="usb_start_download_patch">Start Download Patch</string>
     <string name="usb_connect_usb_device">Connect Usb Device</string>
+    <string name="usb_read_local_version">Read Local Version</string>
 
     <string name="usb_error_no_patch_code_file">Please select patch code file</string>
     <string name="usb_error_no_config_file">Please select config file</string>

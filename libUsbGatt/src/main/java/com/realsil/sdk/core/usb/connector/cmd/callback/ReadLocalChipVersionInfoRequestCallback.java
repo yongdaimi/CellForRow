@@ -21,7 +21,7 @@ public abstract class ReadLocalChipVersionInfoRequestCallback extends BaseReques
      * @param manufacturerName LMP Subversion
      */
     public void onReceivedVersionInformation(int hciVersion, int hciRevision, int lmpVersion,
-                                             int lmpSubVersion, String manufacturerName) {}
+                                             int lmpSubVersion, int manufacturerName) {}
 
     /**
      * This method will be called if an error occurs while receiving data.

@@ -106,12 +106,20 @@ public class WriteAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
             if (getWriteAttributeRequestCallback() != null) {
                 getWriteAttributeRequestCallback().onWriteSuccess();
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         }
+
+        /*if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.WRITE_RESPONSE) {
+            if (getWriteAttributeRequestCallback() != null) {
+                getWriteAttributeRequestCallback().onWriteSuccess();
+            }
+            mParseResult = AttributeParseResult.PARSE_SUCCESS;
+        }*/
+
     }
 
 }

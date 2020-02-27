@@ -44,14 +44,24 @@ public abstract class BaseUsbRequest extends BaseRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         mReceiveReportID = responseData[0];
-        // Make sure the report id sent and received are consistent.
-        if (mReceiveReportID == mSendReportID) {
+        // 2020/2/26 xp.chen Modify(Sometimes the buff returned by the device is not a
+        // normal complete event, so a valid buff is at least 8 bytes long. Only in this
+        // way can the status_code be obtained.)
+        if (responseData.length > 8) {
             mReceiveMessageLength = responseData[1] & 0x0FF;
             ByteBuffer buffer = ByteBuffer.wrap(responseData);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             response_opcode = buffer.getShort(5);
             status_code = buffer.get(7);
         }
+        // Make sure the report id sent and received are consistent (useless).
+        /*if (mReceiveReportID == mSendReportID) {
+            mReceiveMessageLength = responseData[1] & 0x0FF;
+            ByteBuffer buffer = ByteBuffer.wrap(responseData);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            response_opcode = buffer.getShort(5);
+            status_code = buffer.get(7);
+        }*/
     }
 
 }

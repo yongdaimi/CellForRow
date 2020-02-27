@@ -22,16 +22,19 @@ import com.realsil.android.dongle.R;
 import com.realsil.android.dongle.adapter.UsbMsgListAdapter;
 import com.realsil.android.dongle.base.BaseFragment;
 import com.realsil.android.dongle.entity.UsbMsg;
+import com.realsil.sdk.core.usb.UsbGattCharacteristic;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
 import com.realsil.sdk.core.usb.connector.UsbError;
 import com.realsil.sdk.core.usb.connector.att.callback.WriteAttributeRequestCallback;
 import com.realsil.sdk.core.usb.connector.att.impl.WriteAttributeRequest;
 import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
+import com.realsil.sdk.core.usb.connector.cmd.callback.ReadDongleConfigRequestCallback;
 import com.realsil.sdk.core.usb.connector.cmd.impl.QueryBTConnectStateRequest;
 import com.realsil.sdk.core.usb.connector.cmd.impl.ReadDongleConfigRequest;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class UsbDebugFragment extends BaseFragment implements View.OnClickListener {
@@ -211,6 +214,7 @@ public class UsbDebugFragment extends BaseFragment implements View.OnClickListen
             @Override
             public void onWriteSuccess() {
                 super.onWriteSuccess();
+                showToast("write success");
             }
 
             @Override
@@ -243,12 +247,38 @@ public class UsbDebugFragment extends BaseFragment implements View.OnClickListen
                 super.onReceiveConnectState(statusCode, connectState);
                 showToast("statusCode: " + statusCode + ", connectState: " + connectState);
             }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                showToast("query bt conn state timeout");
+            }
         });
         LocalUsbConnector.getInstance().sendRequest(queryBTConnectStateRequest);
     }
 
     private void read_dongle_config_state() {
         ReadDongleConfigRequest readDongleConfigRequest = new ReadDongleConfigRequest();
+        readDongleConfigRequest.addReadDongleConfigRequestCallback(new ReadDongleConfigRequestCallback() {
+            @Override
+            public void onReadOtaCharacteristicList(List<UsbGattCharacteristic> list) {
+                super.onReadOtaCharacteristicList(list);
+                showToast("read dongle config success, "+"Characteristic size is: "+list.size());
+            }
+
+            @Override
+            public void onReadFailed() {
+                super.onReadFailed();
+                showToast("read dongle config failed");
+            }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                showToast("read dongle config timeout");
+            }
+        });
+
         LocalUsbConnector.getInstance().sendRequest(readDongleConfigRequest);
     }
 

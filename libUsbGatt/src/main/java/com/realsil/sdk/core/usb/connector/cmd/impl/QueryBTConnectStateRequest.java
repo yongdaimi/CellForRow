@@ -70,7 +70,7 @@ public class QueryBTConnectStateRequest extends BaseUsbRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         super.parseResponse(responseData);
-        if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
+        if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             byte connectStatus = responseData[8];
             if (getQueryBTConnectStateRequestCallback() != null) {
                 getQueryBTConnectStateRequestCallback().onReceiveConnectState(STATUS_SUCCESS,

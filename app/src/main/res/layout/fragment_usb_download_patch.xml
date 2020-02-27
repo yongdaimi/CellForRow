@@ -41,6 +41,13 @@
         android:textAllCaps="false" />
 
     <Button
+        android:id="@+id/btn_read_local_version"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/usb_read_local_version"
+        android:textAllCaps="false" />
+
+    <Button
         android:id="@+id/btn_load_patch_code"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

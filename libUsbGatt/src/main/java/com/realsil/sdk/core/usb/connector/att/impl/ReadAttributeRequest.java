@@ -82,7 +82,7 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
             byte[] att_value = new byte[mReceiveMessageLength - AttPduParamLengthDefine.LENGTH_ATT_OPCODE];
             System.arraycopy(response, 3, att_value, 0, att_value.length);
 
@@ -91,6 +91,16 @@ public class ReadAttributeRequest extends BaseAttributeRequest {
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         }
+
+        /*if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.READ_RESPONSE) {
+            byte[] att_value = new byte[mReceiveMessageLength - AttPduParamLengthDefine.LENGTH_ATT_OPCODE];
+            System.arraycopy(response, 3, att_value, 0, att_value.length);
+
+            if (getReadAttributeRequestCallback() != null) {
+                getReadAttributeRequestCallback().onReadSuccess(att_value);
+            }
+            mParseResult = AttributeParseResult.PARSE_SUCCESS;
+        }*/
     }
 
 }

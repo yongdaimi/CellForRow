@@ -85,7 +85,7 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
     @Override
     public void parseResponse(byte[] response) {
         super.parseResponse(response);
-        if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
+        if (response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
             short server_mtu_size = 0;
             ByteBuffer buffer = ByteBuffer.wrap(response);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -96,6 +96,18 @@ public class ExchangeMtuRequest extends BaseAttributeRequest {
             }
             mParseResult = AttributeParseResult.PARSE_SUCCESS;
         }
+
+        /*if (mReceiveReportID == mSendReportID && response_opcode == AttPduOpcodeDefine.EXCHANGE_MTU_RESPONSE) {
+            short server_mtu_size = 0;
+            ByteBuffer buffer = ByteBuffer.wrap(response);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            server_mtu_size = buffer.getShort(3);
+
+            if (getExchangeMtuRequestCallback() != null) {
+                getExchangeMtuRequestCallback().onReceiveServerRxMtu(server_mtu_size & 0x0FF);
+            }
+            mParseResult = AttributeParseResult.PARSE_SUCCESS;
+        }*/
     }
 
 

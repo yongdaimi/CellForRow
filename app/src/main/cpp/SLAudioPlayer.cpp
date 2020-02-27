@@ -12,6 +12,9 @@
 #include "SLLog.h"
 
 
+#define RECORD_BUFFER_QUEUE_NUM 2
+
+
 static void writePcmDataCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void *pContext)
 {
     static char *buf = NULL;
@@ -34,13 +37,6 @@ static void writePcmDataCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void
         }
     }
 }
-
-/*
-static void readPcmDataCallback(SLAndroidSimpleBufferQueueItf queue, void *pContext) {
-    // read pcm data from queue.
-
-}
-*/
 
 
 SLresult SLAudioPlayer::initAudioPlayer()
@@ -167,6 +163,21 @@ SLresult SLAudioPlayer::startPlay()
 }
 
 
+static void readPcmDataCallback(SLAndroidSimpleBufferQueueItf queueItf, void *pContext)
+{
+    unsigned char buffer[1024];
+    (*queueItf)->Enqueue(queueItf, buffer, sizeof(buffer));
+
+    static FILE *fp = NULL;
+    if (!fp) {
+        fp = fopen("/sdcard/record.pcm", "wb+");
+    }
+
+    if (!fp) return;
+
+}
+
+
 SLresult SLAudioPlayer::startRecord()
 {
     SLresult ret = 0;
@@ -197,7 +208,7 @@ SLresult SLAudioPlayer::startRecord()
     // Configuration the recorder's audio data save way.
     SLDataLocator_AndroidSimpleBufferQueue queue;
     queue.locatorType = SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE;
-    queue.numBuffers = 10;
+    queue.numBuffers = RECORD_BUFFER_QUEUE_NUM;
 
     SLDataFormat_PCM pcmFormat;
     pcmFormat.formatType = SL_DATAFORMAT_PCM;
@@ -242,7 +253,27 @@ SLresult SLAudioPlayer::startRecord()
         return ret;
     }
 
+    ret = (*queueItf)->RegisterCallback(queueItf, readPcmDataCallback, NULL);
+    if (ret != SL_RESULT_SUCCESS) {
+        XLOGE("register read pcm data callback failed");
+        return ret;
+    }
+
+    SLRecordItf recordItf;
+    ret = (*audioRecorder)->GetInterface(audioRecorder, SL_IID_RECORD, &recordItf);
+    if (ret != SL_RESULT_SUCCESS) {
+        XLOGE("audioRecorder get SL_IID_RECORD interface failed");
+        return ret;
+    }
+
+    (*recordItf)->SetRecordState(recordItf, SL_RECORDSTATE_RECORDING);
     return ret;
+}
+
+
+SLresult SLAudioPlayer::stopRecord()
+{
+
 }
 
 

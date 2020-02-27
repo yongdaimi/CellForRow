@@ -7,6 +7,7 @@
 
 
 #include <SLES/OpenSLES.h>
+#include <SLES/OpenSLES_Android.h>
 
 
 class SLAudioPlayer
@@ -19,6 +20,8 @@ public:
     SLresult startPlay();
 
     SLresult startRecord();
+
+    SLresult stopRecord();
 
 private:
     SLEngineItf mEngineItf = NULL;

@@ -51,7 +51,7 @@ public class ReadRomVersionCommand extends BaseUsbRequest {
 
         /// Put Protocol Header
         // ReportID Note: Report ID = 5 in Download Patch in normal mode
-        mSendReportID = UsbConfig.REPORT_ID_5;
+        mSendReportID = UsbConfig.REPORT_ID_4;
         byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
@@ -64,7 +64,7 @@ public class ReadRomVersionCommand extends BaseUsbRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         super.parseResponse(responseData);
-        if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
+        if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             ByteBuffer buffer = ByteBuffer.wrap(responseData);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             // If you want to compare firmware's chip id in the future, you need to add 1

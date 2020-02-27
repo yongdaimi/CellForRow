@@ -80,6 +80,7 @@ public class LocalUsbConnector {
      * Set the maximum buffer size for data received on interrupt out endpoint.
      */
     private static final int BUFF_SIZE_ON_USB_ENDPOINT = 255;
+    // private static final int BUFF_SIZE_ON_USB_ENDPOINT = 256;
 
     /* Global lock and condition */
     private final ReentrantLock mSendNextRequestLock           = new ReentrantLock();

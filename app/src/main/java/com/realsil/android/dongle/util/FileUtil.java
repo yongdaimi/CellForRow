@@ -6,12 +6,17 @@ import android.net.Uri;
 import android.os.Environment;
 import android.text.TextUtils;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+
+import androidx.core.content.FileProvider;
 
 /**
  * @author xp.chen
@@ -30,7 +35,7 @@ public class FileUtil {
      * @param uri     File uri
      * @return The true path of a file. Note: The return value may be empty.
      */
-    public static String getFilePath(Context context, Uri uri) {
+    /*public static String getFilePath(Context context, Uri uri) {
         if (context == null || uri == null) return null;
         if (FILE_SCHEME_CONTENT.equalsIgnoreCase(uri.getScheme())) {
             String[] projection = {FILE_DB_COLUMN_FIELD_DATA};
@@ -49,7 +54,7 @@ public class FileUtil {
             return uri.getPath();
         }
         return null;
-    }
+    }*/
 
 
     /**
@@ -66,12 +71,14 @@ public class FileUtil {
      */
     public static byte[] readBinaryFileContent(String filePath) {
         File binaryFile = new File(filePath);
-        if (!binaryFile.exists())
+        if (!binaryFile.exists()) {
             return null;
+        }
 
         long fileLength = binaryFile.length();
-        if (fileLength > Integer.MAX_VALUE)
+        if (fileLength > Integer.MAX_VALUE) {
             return null;
+        }
 
         try {
             byte[] fileContent = new byte[(int) fileLength];
@@ -84,6 +91,38 @@ public class FileUtil {
             }
             fos.close();
             return fileContent;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    /**
+     * This method is used to read the content of a binary file, it will return
+     * a byte array to hold the contents of the file.
+     * <p>
+     * Note: It can not be used to read large files
+     * </p>
+     *
+     * @param uri uri to the binary file
+     * @return The contents of the binary file specifying the path. The returned
+     * byte array may be empty if the file at the specified path does
+     * not exist.
+     */
+    public static byte[] readBinaryFileContent(Context context, Uri uri) {
+        if (context == null || uri == null) return null;
+        try {
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            if (inputStream == null) return null;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte buff[] = new byte[1024];
+            int len = 0;
+            while ((len = inputStream.read(buff)) != -1) {
+                baos.write(buff, 0, len);
+            }
+            baos.flush();
+            return baos.toByteArray();
         } catch (Exception e) {
             e.printStackTrace();
         }

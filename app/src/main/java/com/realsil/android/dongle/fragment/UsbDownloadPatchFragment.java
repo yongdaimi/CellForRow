@@ -30,6 +30,7 @@ import com.realsil.android.dongle.util.FileUtil;
 import com.realsil.android.dongle.util.TimeUtil;
 import com.realsil.sdk.core.usb.UsbGatt;
 import com.realsil.sdk.core.usb.connector.LocalUsbConnector;
+import com.realsil.sdk.core.usb.connector.RtkBTChipVersionInfo;
 import com.realsil.sdk.core.usb.connector.UsbError;
 import com.realsil.sdk.core.usb.connector.callback.OnUsbDeviceStatusChangeCallback;
 import com.realsil.sdk.core.usb.connector.cmd.callback.QueryBTConnectStateRequestCallback;
@@ -45,6 +46,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 
 public class UsbDownloadPatchFragment extends BaseFragment implements View.OnClickListener {
@@ -54,6 +56,7 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     private Button btn_load_patch_code;
     private Button btn_load_config_file;
     private Button btn_start_download_patch;
+    private Button btn_read_local_version;
 
     private ImageButton ib_save_running_log;
 
@@ -72,11 +75,8 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
 
     private static final String TAG = "xp.chen";
 
-    private String mSelectedPathCodePath;
-    private String mSelectedConfigFilePath;
-
-    private byte[] mPatchCodeByteArr;
-    private byte[] mConfigFileByteArr;
+    private Uri mSelectedPathCodeUri;
+    private Uri mSelectedConfigFileUri;
 
     private int mMsgCount;
 
@@ -91,6 +91,7 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         btn_load_patch_code = findViewById(R.id.btn_load_patch_code);
         btn_load_config_file = findViewById(R.id.btn_load_config_file);
         btn_start_download_patch = findViewById(R.id.btn_start_download_patch);
+        btn_read_local_version = findViewById(R.id.btn_read_local_version);
 
         ib_save_running_log = findViewById(R.id.ib_save_running_log);
 
@@ -108,6 +109,7 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         btn_load_config_file.setOnClickListener(this);
         btn_start_download_patch.setOnClickListener(this);
         ib_save_running_log.setOnClickListener(this);
+        btn_read_local_version.setOnClickListener(this);
     }
 
 
@@ -142,6 +144,9 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
                 break;
             case R.id.ib_save_running_log:
                 saveRunningLog();
+                break;
+            case R.id.btn_read_local_version:
+                readLocalVersionInformationRequest(false);
                 break;
             default:
                 break;
@@ -224,20 +229,22 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         }
 
         // Check whether the patch code file and config file exist
-        if (TextUtils.isEmpty(mSelectedPathCodePath)) {
+        if (mSelectedPathCodeUri == null) {
             sendUsbMessage(getLocalString(R.string.usb_error_no_patch_code_file), UsbMsg.MSG_TYPE_ERROR);
             return;
         }
 
-        if (TextUtils.isEmpty(mSelectedConfigFilePath)) {
+        if (mSelectedConfigFileUri == null) {
             sendUsbMessage(getLocalString(R.string.usb_error_no_config_file), UsbMsg.MSG_TYPE_ERROR);
             return;
         }
 
         sendUsbMessage("Found the patch code file and config file");
 
-        // Check bluetooth gatt connection state
-        queryBTConnectStateRequest();
+        // Check bluetooth gatt connection state (no need when do download patch action)
+        // queryBTConnectStateRequest();
+
+        readLocalVersionInformationRequest(true);
     }
 
     private void queryBTConnectStateRequest() {
@@ -248,7 +255,8 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
                 super.onReceiveConnectState(statusCode, connectState);
                 if (connectState == UsbGatt.STATE_CONNECTED) {
                     sendUsbMessage("Connect to bluetooth gatt successfully");
-                    readRomVersionCommand();
+                    // readRomVersionCommand(); no need
+                    readLocalVersionInformationRequest(true);
                 } else {
                     sendUsbMessage("Connect to bluetooth gatt failed, connectState: " + connectState, UsbMsg.MSG_TYPE_ERROR);
                 }
@@ -295,12 +303,25 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     }
 
 
-    private void readLocalVersionInformationRequest() {
+    private void readLocalVersionInformationRequest(boolean isNeedDownload) {
         ReadLocalChipVersionInfoRequest readLocalChipVersionInfoRequest = new ReadLocalChipVersionInfoRequest();
         readLocalChipVersionInfoRequest.addReadLocalChipVersionInfoRequestCallback(new ReadLocalChipVersionInfoRequestCallback() {
             @Override
-            public void onReceivedVersionInformation(int hciVersion, int hciRevision, int lmpVersion, int lmpSubVersion, String manufacturerName) {
+            public void onReceivedVersionInformation(int hciVersion, int hciRevision, int lmpVersion, int lmpSubVersion, int manufacturerName) {
                 super.onReceivedVersionInformation(hciVersion, hciRevision, lmpVersion, lmpSubVersion, manufacturerName);
+                String versionInfo = String.format(Locale.getDefault(), "hciVersion: %#x, hciRevision: %#x, lmpVersion: %#x, lmpSubVersion: %#x, manufacturerName: %#x",
+                        hciVersion, hciRevision, lmpVersion, lmpSubVersion, manufacturerName);
+                sendUsbMessage("hci read local version info: " + versionInfo);
+
+                boolean needDownload = checkIsNeedDownloadPathByCompareVersion(lmpSubVersion, hciRevision);
+                if (needDownload) {
+                    sendUsbMessage("lmpSubversion match, able to download patch");
+                    if (isNeedDownload) {
+                        new ReadBinaryFileContentThread(0).start();
+                    }
+                } else {
+                    sendUsbMessage("lmpSubversion not match, No download required");
+                }
                 // TODO: 2020/1/13 Start compare bluetooth chip version,
                 // new ReadBinaryFileContentThread().start();
             }
@@ -308,10 +329,32 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             @Override
             public void onReceiveFailed() {
                 super.onReceiveFailed();
-                sendUsbMessage("can not read bluetooth chip version", UsbMsg.MSG_TYPE_ERROR);
+                sendUsbMessage("hci read local version failed", UsbMsg.MSG_TYPE_ERROR);
             }
+
+            @Override
+            public void onReceiveTimeout() {
+                super.onReceiveTimeout();
+                sendUsbMessage("hci read local version timeout", UsbMsg.MSG_TYPE_ERROR);
+            }
+
         });
         LocalUsbConnector.getInstance().sendRequest(readLocalChipVersionInfoRequest);
+    }
+
+
+    private boolean checkIsNeedDownloadPathByCompareVersion(int lmpSubVersion, int hciRevision) {
+        int versionInfo[][] = RtkBTChipVersionInfo.CHIP_VERSION_INFO_TABLE;
+        for (int[] chipVersion : versionInfo) {
+            /*if (lmpSubVersion == chipVersion[0] && hciRevision == chipVersion[1]) {
+                return true;
+            }*/
+            // allow download Only lmpSubVersion is equals.
+            if (lmpSubVersion == chipVersion[0]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private class ReadBinaryFileContentThread extends Thread {
@@ -334,32 +377,33 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
         public void run() {
             super.run();
             // Read binary file content
-            mPatchCodeByteArr = FileUtil.readBinaryFileContent(mSelectedPathCodePath);
-            if (mPatchCodeByteArr == null) {
+            byte[] patchCodeByteArr = FileUtil.readBinaryFileContent(mContext, mSelectedPathCodeUri);
+            if (patchCodeByteArr == null) {
                 sendUsbMessage("can not read patch code file", UsbMsg.MSG_TYPE_ERROR);
                 return;
             }
 
-            mConfigFileByteArr = FileUtil.readBinaryFileContent(mSelectedConfigFilePath);
-            if (mConfigFileByteArr == null) {
+            byte[] configFileByteArr = FileUtil.readBinaryFileContent(mContext, mSelectedConfigFileUri);
+            if (configFileByteArr == null) {
                 sendUsbMessage("can not read config file", UsbMsg.MSG_TYPE_ERROR);
                 return;
             }
             // Merge Patch code byte array and config file byte array to a new array.
-            byte[] mergedPatchCode = new byte[mPatchCodeByteArr.length + mConfigFileByteArr.length];
-            System.arraycopy(mPatchCodeByteArr, 0, mergedPatchCode, 0, mPatchCodeByteArr.length);
-            System.arraycopy(mConfigFileByteArr, 0, mergedPatchCode, mPatchCodeByteArr.length, mConfigFileByteArr.length);
+            byte[] mergedPatchCode = new byte[patchCodeByteArr.length + configFileByteArr.length];
+            System.arraycopy(patchCodeByteArr, 0, mergedPatchCode, 0, patchCodeByteArr.length);
+            System.arraycopy(configFileByteArr, 0, mergedPatchCode, patchCodeByteArr.length, configFileByteArr.length);
 
             // Check whether the patch header is correct
             // Note: Download Patch Code Header must be "Realtech"
-            byte[] patchCodeHeader = Arrays.copyOfRange(mergedPatchCode, 0, DEFINE_PATCH_CODE_HEADER.length);
+
+            /*byte[] patchCodeHeader = Arrays.copyOfRange(mergedPatchCode, 0, DEFINE_PATCH_CODE_HEADER.length);
             if (!Arrays.equals(patchCodeHeader, DEFINE_PATCH_CODE_HEADER)) {
                 sendUsbMessage("download failed, invalid patch code file", UsbMsg.MSG_TYPE_ERROR);
                 return;
-            }
+            }*/
 
             // Read version info(LmpSubversion)
-            ByteBuffer buffer = ByteBuffer.wrap(mergedPatchCode);
+            /*ByteBuffer buffer = ByteBuffer.wrap(mergedPatchCode);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             int patch_lmp_subversion = buffer.getInt(8);
             int patch_len = 0, patch_offset = 0;
@@ -370,7 +414,10 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             if (num_of_patch == 1) {
                 // If there is only one patch
                 int firmware_chip_id = (mergedPatchCode[0x0E] | (mergedPatchCode[0x0F] << 8)) & 0x0FF;
-                sendUsbMessage("firmware chip id: " + firmware_chip_id + ", read rom chip id: " + mChipID);
+                // Note: This tool is only for 8761Bru Dongle, No need to call the {@link ReadRomVersionCommand} interface,
+                // no chip_id exists.
+                // sendUsbMessage("firmware chip id: " + firmware_chip_id + ", read rom chip id: " + mChipID);
+                sendUsbMessage("firmware chip id: " + firmware_chip_id);
 
                 patch_len = (mergedPatchCode[0x0E + 2] | (mergedPatchCode[0x0F + 2] << 8)) & 0x0FF;
                 patch_offset = (mergedPatchCode[0x0E + 4] | (mergedPatchCode[0x0F + 4] << 8)) & 0x0FF;
@@ -401,7 +448,7 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
             patch_info_buffer.putInt(patch_info.length - 4, patch_lmp_subversion);
 
             sendUsbMessage("patch file read complete(length = " + patch_len + "), ready to start...");
-
+*/
             // Ready to start send file
             sendPacket2BtController(mergedPatchCode);
         }
@@ -441,6 +488,7 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
 
     private void chooseFile(int requestCode) {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        // Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
         startActivityForResult(intent, requestCode);
@@ -488,30 +536,28 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
 
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent resultData) {
+        super.onActivityResult(requestCode, resultCode, resultData);
         if (requestCode == REQUEST_CODE_CHOOSE_PATCH_CODE_FILE && resultCode == Activity.RESULT_OK) {
-            if (data == null) return;
-            Uri uri = data.getData();
+            if (resultData == null) return;
+            Uri uri = resultData.getData();
 
             if (uri == null) return;
-            Log.i(TAG, "File uri: " + uri.toString());
+            Log.i(TAG, "Select Patch Code Uri: " + uri.toString());
 
-            mSelectedPathCodePath = FileUtil.getFilePath(mContext, uri);
-            Log.i(TAG, "Select Patch Code Path: " + mSelectedPathCodePath);
-            sendUsbMessage("Select Patch Code Path: " + mSelectedPathCodePath);
+            mSelectedPathCodeUri = uri;
+            sendUsbMessage("Select Patch Code Uri: " + uri.toString());
         }
 
         if (requestCode == REQUEST_CODE_CHOOSE_CONFIG_FILE && resultCode == Activity.RESULT_OK) {
-            if (data == null) return;
-            Uri uri = data.getData();
+            if (resultData == null) return;
+            Uri uri = resultData.getData();
 
             if (uri == null) return;
-            Log.i(TAG, "File uri: " + uri.toString());
+            Log.i(TAG, "Select Config File uri: " + uri.toString());
 
-            mSelectedConfigFilePath = FileUtil.getFilePath(mContext, uri);
-            Log.i(TAG, "Select Config File Path: " + mSelectedConfigFilePath);
-            sendUsbMessage("Select Config File Path: " + mSelectedConfigFilePath);
+            mSelectedConfigFileUri = uri;
+            sendUsbMessage("Select Config File uri: " + uri.toString());
         }
     }
 

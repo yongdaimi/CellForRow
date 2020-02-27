@@ -51,8 +51,8 @@ public class ReadLocalChipVersionInfoRequest extends BaseUsbRequest {
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
         /// Put Protocol Header
-        // ReportID Note: Report ID = 5 in Download Patch in normal mode
-        mSendReportID = UsbConfig.REPORT_ID_5;
+        // ReportID Note: Report ID = 4
+        mSendReportID = UsbConfig.REPORT_ID_4;
         byteBuffer.put(mSendReportID);
         // message length(ATT PDU length)
         byteBuffer.put(1, (byte) mSendMessageLength);
@@ -65,17 +65,15 @@ public class ReadLocalChipVersionInfoRequest extends BaseUsbRequest {
     @Override
     public void parseResponse(byte[] responseData) {
         super.parseResponse(responseData);
-        if (mReceiveReportID == mSendReportID && response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
+        if (response_opcode == request_opcode && status_code == STATUS_SUCCESS) {
             ByteBuffer buffer = ByteBuffer.wrap(responseData);
             buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            short hciVersion = buffer.getShort(8);
-            short hciRevision = buffer.getShort(10);
-            short lmpVersion = buffer.getShort(12);
-
-            // TODO: 2020/1/10 parse manufacturer Name
-            String manufacturerName = null;
-            short lmpSubVersion = buffer.getShort(15);
+            int hciVersion = buffer.get(8) & 0x0FF;
+            int hciRevision = buffer.getShort(9) & 0x0FFFF;
+            int lmpVersion = buffer.get(11) & 0x0FF;
+            int manufacturerName = buffer.getShort(12) & 0x0FFFF;
+            int lmpSubVersion = buffer.getShort(14) & 0x0FFFF;
 
             if (getReadLocalChipVersionInfoRequestCallback() != null) {
                 getReadLocalChipVersionInfoRequestCallback().onReceivedVersionInformation(hciVersion, hciRevision, lmpVersion, lmpSubVersion, manufacturerName);
