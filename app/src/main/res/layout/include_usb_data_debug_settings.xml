@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="15dip"
+    android:background="#E6E0E0E0"
+    android:clickable="true"
+    >
+
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Endpoint Select:"
+        android:textColor="@color/colorPrimary"
+        android:textStyle="bold"
+        />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Send Endpoint:"
+        android:textColor="@color/textColorPrimary"
+        android:layout_marginTop="4dip"
+        />
+
+    <LinearLayout
+        android:id="@+id/ll_send_option_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+
+        <TextView
+            android:id="@+id/tv_send_on_bulk_out"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Bulk Out"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            />
+
+        <TextView
+            android:id="@+id/tv_send_on_interrupt_out"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Interrupt Out"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            android:layout_marginLeft="16dip"
+            />
+
+        <TextView
+            android:id="@+id/tv_send_on_control_out"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Control"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            android:layout_marginLeft="16dip"
+            />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Receive Endpoint:"
+        android:textColor="@color/textColorPrimary"
+        android:layout_marginTop="10dip"
+        />
+
+    <LinearLayout
+        android:id="@+id/ll_receive_option_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        >
+
+        <TextView
+            android:id="@+id/tv_receive_on_bulk_in"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Bulk In"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            />
+
+        <TextView
+            android:id="@+id/tv_receive_on_interrupt_in"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Interrupt In"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            android:layout_marginLeft="16dip"
+            />
+
+        <TextView
+            android:id="@+id/tv_receive_on_control_in"
+            android:layout_width="wrap_content"
+            android:layout_height="36dip"
+            android:textColor="@color/textColorPrimary"
+            android:background="@drawable/shape_unselect_box_bg"
+            android:text="Control"
+            android:gravity="center"
+            android:paddingLeft="8dip"
+            android:paddingRight="8dip"
+            android:layout_marginLeft="16dip"
+            />
+
+    </LinearLayout>
+
+</LinearLayout>

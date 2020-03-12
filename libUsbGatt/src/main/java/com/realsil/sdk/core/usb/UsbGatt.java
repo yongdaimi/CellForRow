@@ -569,7 +569,13 @@ public final class UsbGatt {
             Log.d(TAG, "setup usb connector failed, error code: " + setupRet);
             return false;
         }
-        LocalUsbConnector.getInstance().connect();
+
+        int ret = LocalUsbConnector.getInstance().connect();
+        if (ret != UsbError.CODE_NO_ERROR) {
+            Log.d(TAG, "connect failed, error code: " + ret);
+            return false;
+        }
+        queryBTConnectStateRequest();
         return true;
     }
 

@@ -38,7 +38,7 @@ public abstract class OnUsbDeviceStatusChangeCallback {
     public void onReceiveHandleValueNotification(short att_handle, byte[] att_value) {}
 
     /**
-     * his method will be called when the usb device's running status has changed, tt will contain a current status code and related detail info.
+     * This method will be called when the usb device's running status has changed, tt will contain a current status code and related detail info.
      *
      * @param errorCode  Identification code when status changes
      * @param detailInfo Detail info when status changes

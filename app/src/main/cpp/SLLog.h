@@ -15,10 +15,12 @@ class SLLog {
 
 #include <android/log.h>
 
-#define LOG_TAG "sl-jni"
+#define LOG_TAG "xp.chen"
 
+#define XLOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
 #define XLOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define XLOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define XLOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define XLOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #else
 #define XLOGD(...) printf(LOG_TAG,__VA_ARGS__)

@@ -1,6 +1,7 @@
 package com.realsil.android.dongle.util;
 
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
@@ -168,5 +169,14 @@ public class FileUtil {
         return true;
     }
 
+
+    public static void notifySystemToScan(Context context, String filePath) {
+        Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        File file = new File(filePath);
+
+        Uri uri = Uri.fromFile(file);
+        intent.setData(uri);
+        context.sendBroadcast(intent);
+    }
 
 }

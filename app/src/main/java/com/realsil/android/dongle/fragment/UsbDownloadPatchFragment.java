@@ -2,6 +2,7 @@ package com.realsil.android.dongle.fragment;
 
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.hardware.usb.UsbDevice;
 import android.net.Uri;
@@ -11,7 +12,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
 
@@ -123,7 +126,9 @@ public class UsbDownloadPatchFragment extends BaseFragment implements View.OnCli
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mUsbMsgListAdapter = new UsbMsgListAdapter(mContext, new ArrayList<UsbMsg>());
+        if (mUsbMsgListAdapter == null) {
+            mUsbMsgListAdapter = new UsbMsgListAdapter(mContext, new ArrayList<UsbMsg>());
+        }
         rv_msg_list.setAdapter(mUsbMsgListAdapter);
     }
 

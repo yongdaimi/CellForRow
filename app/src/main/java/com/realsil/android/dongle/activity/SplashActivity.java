@@ -20,7 +20,8 @@ public class SplashActivity extends BaseActivity {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.RECORD_AUDIO
     };
 
     private static final int REQUEST_CODE_APPLY_PERMISSION = 10001;

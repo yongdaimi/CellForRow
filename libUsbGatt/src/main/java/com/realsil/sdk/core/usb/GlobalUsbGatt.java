@@ -7,6 +7,8 @@ import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.util.Log;
 
+import com.realsil.sdk.core.usb.connector.util.ByteUtil;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -518,7 +520,7 @@ public class GlobalUsbGatt {
             if (D) {
                 if (value != null) {
                     Log.d(TAG,String.format(Locale.US, "%d << %s\n:\t(%d)%s",
-                            status, characteristic.getUuid(), value.length, Arrays.toString(value)));
+                            status, characteristic.getUuid(), value.length, ByteUtil.convertHexString(value)));
                 }
             }
 
@@ -544,7 +546,7 @@ public class GlobalUsbGatt {
             if (D) {
                 if (value != null) {
                     Log.d(TAG,String.format(Locale.US, "<< %s\n(%d)%s",
-                            characteristic.getUuid(), value.length, Arrays.toString(value)));
+                            characteristic.getUuid(), value.length, ByteUtil.convertHexString(value)));
                 } else {
                     Log.d(TAG,String.format(Locale.US, "<< %s", characteristic.getUuid()));
                 }
@@ -566,7 +568,7 @@ public class GlobalUsbGatt {
             if (D) {
                 if (value != null) {
                     Log.d(TAG,String.format(Locale.US, "%d << %s\n(%d)%s", status,
-                            characteristic.getUuid(), value.length, Arrays.toString(value)));
+                            characteristic.getUuid(), value.length, ByteUtil.convertHexString(value)));
                 }
             }
 

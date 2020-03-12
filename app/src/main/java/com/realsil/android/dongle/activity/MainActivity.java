@@ -8,8 +8,8 @@ import android.view.MenuItem;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentPagerAdapter;
-import androidx.viewpager.widget.ViewPager;
+import androidx.viewpager2.adapter.FragmentStateAdapter;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomnavigation.LabelVisibilityMode;
@@ -28,7 +28,7 @@ import java.util.List;
 public class MainActivity extends BaseActivity {
 
 
-    private ViewPager vp_pager;
+    private ViewPager2 vp_pager_2;
 
     private BottomNavigationView nv_bottom_tab_bar;
 
@@ -43,17 +43,16 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void init() {
-        vp_pager = findViewById(R.id.vp_pager);
+        vp_pager_2 = findViewById(R.id.vp_pager);
         nv_bottom_tab_bar = findViewById(R.id.nv_bottom_tab_bar);
         nv_bottom_tab_bar.setLabelVisibilityMode(LabelVisibilityMode.LABEL_VISIBILITY_LABELED);
     }
 
     @Override
     protected void setListener() {
-        vp_pager.addOnPageChangeListener(mOnPageChangeListener);
+        vp_pager_2.registerOnPageChangeCallback(mOnPageChangeCallback);
         nv_bottom_tab_bar.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
     }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,28 +68,28 @@ public class MainActivity extends BaseActivity {
         mFragmentList.add(usbDownloadPatchFragment);
         mFragmentList.add(usbDebugFragment);
         mFragmentList.add(usbAudioFragment);
-        vp_pager.setAdapter(mFragmentPagerAdapter);
+
+        vp_pager_2.setAdapter(mFragmentPagerAdapter);
     }
 
 
-    private FragmentPagerAdapter mFragmentPagerAdapter = new FragmentPagerAdapter(getSupportFragmentManager(),
-            FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
+
+    private FragmentStateAdapter mFragmentPagerAdapter = new FragmentStateAdapter(this) {
 
         @NonNull
         @Override
-        public Fragment getItem(int position) {
+        public Fragment createFragment(int position) {
             return mFragmentList.get(position);
         }
 
         @Override
-        public int getCount() {
+        public int getItemCount() {
             return mFragmentList.size();
         }
 
     };
 
-
-    private ViewPager.SimpleOnPageChangeListener mOnPageChangeListener = new ViewPager.SimpleOnPageChangeListener() {
+    private ViewPager2.OnPageChangeCallback mOnPageChangeCallback = new ViewPager2.OnPageChangeCallback() {
 
         @Override
         public void onPageSelected(int position) {
@@ -101,12 +100,11 @@ public class MainActivity extends BaseActivity {
 
     };
 
-
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
         @Override
         public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-            vp_pager.setCurrentItem(menuItem.getOrder());
+            vp_pager_2.setCurrentItem(menuItem.getOrder());
             return false;
         }
     };
