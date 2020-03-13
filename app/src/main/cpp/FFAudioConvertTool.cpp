@@ -187,9 +187,16 @@ bool FFAudioConvertTool::openOutputFile(const char *outputAudioFilePath)
         mOutputCodecCtx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
 
+    // Open the encoder for the audio stream to use it later
     ret = avcodec_open2(mOutputCodecCtx, mOutputCodec, nullptr);
     if (ret < 0) {
         XLOGE("could not open output codec, %s", av_err2str(ret));
+        return false;
+    }
+
+    ret = avcodec_parameters_from_context(outputAudioStream->codecpar, mOutputCodecCtx);
+    if (ret < 0) {
+        XLOGE("could not initialize stream parameters, %s", av_err2str(ret));
         return false;
     }
 
@@ -201,11 +208,44 @@ void FFAudioConvertTool::close()
 {
     if (mInputFormatCtx) {
         avformat_close_input(&mInputFormatCtx);
+        mInputFormatCtx = nullptr;
     }
 
     if (mInputCodecCtx) {
         avcodec_free_context(&mInputCodecCtx);
+        mInputCodecCtx = nullptr;
     }
+
+    if (mOutputCodecCtx) {
+        avcodec_free_context(&mOutputCodecCtx);
+        mOutputCodecCtx = nullptr;
+    }
+
+    if (mOutputFormatCtx) {
+        avio_closep(&mOutputFormatCtx->pb);
+        avformat_free_context(mOutputFormatCtx);
+        mOutputFormatCtx = nullptr;
+    }
+}
+
+
+bool FFAudioConvertTool::writeOutputFileHeader(AVFormatContext *outputForCtx)
+{
+    int ret = avformat_write_header(outputForCtx, nullptr);
+    if (ret < 0) {
+        XLOGE("write output file header failed, %s", av_err2str(ret));
+        return false;
+    }
+    XLOGI("write output file header success");
+    return true;
+}
+
+
+bool FFAudioConvertTool::convert()
+{
+    
+
+    return true;
 }
 
 

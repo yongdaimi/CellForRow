@@ -45,6 +45,10 @@ add_library( # Sets the name of the library.
         src/main/cpp/SLAudioRecorder.cpp
         src/main/cpp/SLAudioPlayer.cpp
         src/main/cpp/FFAudioConvertTool.cpp
+        src/main/cpp/FFResample.cpp
+        src/main/cpp/FFAudioFifo.cpp
+        src/main/cpp/FFDecoder.cpp
+        src/main/cpp/FFDemux.cpp
         )
 
 # Searches for a specified prebuilt library and stores the path as a

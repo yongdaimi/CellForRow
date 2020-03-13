@@ -1477,11 +1477,26 @@ public class LocalUsbConnector {
         public void run() {
             mWriteAttributesCommand.createCommand();
 
-            if (mUsbEndpointBulkOut != null) {
-                writeCommand2BulkOutEndpoint(mWriteAttributesCommand);
-            } else if (mUsbEndpointInterruptOut != null) {
-                writeCommand2InterruptOutEndpoint(mWriteAttributesCommand);
+            // send request message on bulk out or interrupt out.
+            if (mSelectedSendEndpoint != UsbEndpointTypeDefine.USB_ENDPOINT_NONE) {
+                if (mSelectedSendEndpoint == UsbEndpointTypeDefine.USB_ENDPOINT_BULK_OUT) {
+                    writeCommand2BulkOutEndpoint(mWriteAttributesCommand);
+                } else if (mSelectedSendEndpoint == UsbEndpointTypeDefine.USB_ENDPOINT_INTERRUPT_OUT) {
+                    writeCommand2InterruptOutEndpoint(mWriteAttributesCommand);
+                } else {
+                    writeCommand2ControlEndpoint(mWriteAttributesCommand);
+                }
+
+            } else {
+                if (mUsbEndpointBulkOut != null) {
+                    writeCommand2BulkOutEndpoint(mWriteAttributesCommand);
+                } else if (mUsbEndpointInterruptOut != null) {
+                    writeCommand2InterruptOutEndpoint(mWriteAttributesCommand);
+                } else {
+                    writeCommand2ControlEndpoint(mWriteAttributesCommand);
+                }
             }
+
         }
 
         private void writeCommand2InterruptOutEndpoint(WriteAttributeCommand command) {

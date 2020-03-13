@@ -42,6 +42,8 @@ public:
 
     bool open(const char *inputAudioFilePath, const char *outputAacFilePath);
 
+    bool convert();
+
     void close();
 
 private:
@@ -49,6 +51,8 @@ private:
     bool openInputFile(const char *inputAudioFilePath);
 
     bool openOutputFile(const char *outputAudioFilePath);
+
+    static bool writeOutputFileHeader(AVFormatContext *outputForCtx);
 
 };
 
